@@ -1,0 +1,42 @@
+{
+  "sudoku1": {
+    "empty_cells": 27,
+    "filled_cells": 54,
+    "n_swap": 8,
+    "possible_swaps": 28,
+    "final_repetitions": 0,
+    "solved": true
+  },
+  "sudoku2": {
+    "empty_cells": 37,
+    "filled_cells": 44,
+    "n_swap": 14,
+    "possible_swaps": 60,
+    "final_repetitions": 4,
+    "solved": false
+  },
+  "sudoku3": {
+    "empty_cells": 46,
+    "filled_cells": 35,
+    "n_swap": 18,
+    "possible_swaps": 109,
+    "final_repetitions": 11,
+    "solved": false
+  },
+  "sudoku4": {
+    "empty_cells": 51,
+    "filled_cells": 30,
+    "n_swap": 16,
+    "possible_swaps": 121,
+    "final_repetitions": 14,
+    "solved": false
+  },
+  "sudoku5": {
+    "empty_cells": 62,
+    "filled_cells": 19,
+    "n_swap": 20,
+    "possible_swaps": 190,
+    "final_repetitions": 13,
+    "solved": false
+  }
+}

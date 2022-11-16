@@ -1,0 +1,42 @@
+{
+  "sudoku1": {
+    "empty_cells": 27,
+    "filled_cells": 54,
+    "possible_swaps": 28,
+    "total_iter": 114,
+    "converged": true,
+    "final_repetitions": 0
+  },
+  "sudoku2": {
+    "empty_cells": 37,
+    "filled_cells": 44,
+    "possible_swaps": 60,
+    "total_iter": 446,
+    "converged": true,
+    "final_repetitions": 0
+  },
+  "sudoku3": {
+    "empty_cells": 46,
+    "filled_cells": 35,
+    "possible_swaps": 109,
+    "total_iter": 3774,
+    "converged": true,
+    "final_repetitions": 0
+  },
+  "sudoku4": {
+    "empty_cells": 51,
+    "filled_cells": 30,
+    "possible_swaps": 121,
+    "total_iter": 22496,
+    "converged": true,
+    "final_repetitions": 0
+  },
+  "sudoku5": {
+    "empty_cells": 62,
+    "filled_cells": 19,
+    "possible_swaps": 190,
+    "total_iter": 95502,
+    "converged": true,
+    "final_repetitions": 0
+  }
+}
