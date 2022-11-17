@@ -6,9 +6,9 @@ import json
 import os
 from statistics import mean
 
-from sudoku import Sudoku
-from solvers import Backtracking
-from settings import IN, OUT
+from assigment_1.sudoku_solver.settings import OUT, IN
+from assigment_1.sudoku_solver.solvers import Backtracking
+from assigment_1.sudoku_solver.sudoku import Sudoku
 
 # I/O settings
 OUT_DIR_NAME = "backtracking"
