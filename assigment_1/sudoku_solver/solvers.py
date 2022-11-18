@@ -59,7 +59,7 @@ class Solver(ABC):
         :param file_out: file to store comparison
         """
 
-        open(file_out, 'w').write(str(self))
+        open(file_out, 'w', encoding="utf-8").write(str(self))
 
 
 class Backtracking(Solver, ABC):
