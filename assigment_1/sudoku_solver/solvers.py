@@ -96,8 +96,8 @@ class Backtracking(Solver, ABC):
             self._s2.set_cell(row=row, col=col, cell=value)
             if self.solve_rec(d=d):
                 return True
-            self._s2.undo(row, col)
             d['backtracked'] += 1
+            self._s2.undo(row, col)
         return False
 
 
