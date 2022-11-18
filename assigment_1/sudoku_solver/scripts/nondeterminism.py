@@ -21,14 +21,21 @@ FILE = 'sudoku6.txt'
 
 exec_time = {}
 
-file_in = os.path.join(IN, FILE)
-s = Sudoku(in_file=file_in)
 
-for i in range(N_ITER):
-    print(i)
-    solver = Backtracking(s=s)
-    d = solver.solve()
-    exec_time[i] = d['elapsed']
+def non_determinism():
 
-OUT_INFO = os.path.join(OUT_DIR, OUT_INFO_FILE)
-json.dump(exec_time, open(OUT_INFO, "w"))
+    file_in = os.path.join(IN, FILE)
+    s = Sudoku(in_file=file_in)
+
+    for i in range(N_ITER):
+        print(i)
+        solver = Backtracking(s=s)
+        d = solver.solve()
+        exec_time[i] = d['elapsed']
+
+    OUT_INFO = os.path.join(OUT_DIR, OUT_INFO_FILE)
+    json.dump(exec_time, open(OUT_INFO, "w"))
+
+
+if __name__ == "__main__":
+    non_determinism()
