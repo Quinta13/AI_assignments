@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 from math import exp
 from typing import Any, Dict, Tuple
 
-from assigment_1.sudoku_solver.sudoku import Sudoku
+from assignment_1.sudoku_solver.sudoku import Sudoku
 
 
 class Solver(ABC):

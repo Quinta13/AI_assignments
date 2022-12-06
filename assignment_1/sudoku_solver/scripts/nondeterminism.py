@@ -5,9 +5,9 @@ This script ...
 import json
 import os
 
-from assigment_1.sudoku_solver.sudoku import Sudoku
-from assigment_1.sudoku_solver.solvers import Backtracking
-from assigment_1.sudoku_solver.settings import IN, OUT
+from assignment_1.sudoku_solver.sudoku import Sudoku
+from assignment_1.sudoku_solver.solvers import Backtracking
+from assignment_1.sudoku_solver.settings import IN, OUT
 
 # I/O settings
 OUT_DIR_NAME = "backtracking"

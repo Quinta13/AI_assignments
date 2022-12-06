@@ -7,9 +7,9 @@ import os
 
 from matplotlib import pyplot as plt
 
-from assigment_1.sudoku_solver.sudoku import Sudoku
-from assigment_1.sudoku_solver.solvers import SimulatedAnnealing
-from assigment_1.sudoku_solver.settings import IN, OUT
+from assignment_1.sudoku_solver.sudoku import Sudoku
+from assignment_1.sudoku_solver.solvers import SimulatedAnnealing
+from assignment_1.sudoku_solver.settings import IN, OUT
 
 
 def save_as_plot(d: dict, name: str):

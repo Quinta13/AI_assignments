@@ -4,34 +4,34 @@ This script ...
 
 import json
 import os
+from statistics import mean
 
-from assigment_1.sudoku_solver.sudoku import Sudoku
-from assigment_1.sudoku_solver.solvers import HillClimbing
-from assigment_1.sudoku_solver.settings import IN, OUT
+from assignment_1.sudoku_solver.settings import OUT, IN
+from assignment_1.sudoku_solver.solvers import Backtracking
+from assignment_1.sudoku_solver.sudoku import Sudoku
 
 # I/O settings
-OUT_DIR_NAME = "hill_climbing"
-OUT_FILE_NAME = "_hill_climbing.txt"
+OUT_DIR_NAME = "backtracking"
+OUT_FILE_NAME = "_backtracking.txt"
 OUT_INFO_FILE = "execution_info.json"
 
 OUT_DIR = os.path.join(OUT, OUT_DIR_NAME)
 
 
-def hill_climbing():
+def backtracking():
     try:
-        print(f"Creating {OUT_DIR} already exists")
+        print(f"Creating {OUT_DIR}")
         os.makedirs(OUT_DIR)
     except FileExistsError:
         print(f"{OUT_DIR} already exists")
-
 
     files = os.listdir(IN)  # input sudoku in .txt file
     files.sort()
 
     info = {}  # dictionary for execution info to store as a .json
 
+    print("")
     for file in files:
-
         file_no_ext = ''.join(file.split(".")[:-1])  # removing extension to file
 
         print(f"Processing {file_no_ext}")
@@ -44,16 +44,16 @@ def hill_climbing():
         # stats
         empties = len(s.empty_cells)
         filled = len(s.non_empty_cells)
-        swaps = len(s.get_swaps())
+        mean_moves = round(mean([len(ass) for _, ass in s.feasible_assignments]), 3)
 
         # solve
-        solver = HillClimbing(s=s)
-        n_swap, rep = solver.solve()
+        solver = Backtracking(s=s)
+        d = solver.solve()
 
         # saving stats
         info[file_no_ext] = {
-            'empty_cells': empties, 'filled_cells': filled, 'n_swap': n_swap,
-            "possible_swaps": swaps, 'final_repetitions': rep, 'solved': rep == 0
+            'time': d['elapsed'], 'empty_cells': empties, 'filled_cells': filled,
+            "mean_feasible_moves": mean_moves, 'expanded': d['expanded'], 'backtracked': d['backtracked']
         }
 
         solver.save(file_out=file_out)
@@ -62,5 +62,5 @@ def hill_climbing():
     json.dump(info, open(OUT_INFO, "w"))
 
 
-if __name__ == "__main__":
-    hill_climbing()
+if __name__ == '__main__':
+    backtracking()
