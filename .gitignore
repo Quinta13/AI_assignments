@@ -1,3 +1,5 @@
-.idea/*
 *.pyc
+
+.idea/*
 /assignment_2/digits_classifiers/datasets/
+/assignment_2/digits_classifiers/images/

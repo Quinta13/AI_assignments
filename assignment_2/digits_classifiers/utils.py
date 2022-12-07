@@ -3,8 +3,28 @@ This script ...
 """
 
 import numpy as np
+import os
 import pandas as pd
 from typing import List
+
+from matplotlib import pyplot as plt
+
+from assignment_2.digits_classifiers.settings import IMAGES
+
+
+def create_dir(path: str, log: bool = True):
+    """
+    Create directory if doesn't exists
+    :param path: directory path
+    :param log: activate logging
+    """
+    try:
+        if log:
+            print(f"Creating {path}")
+        os.makedirs(path)
+    except FileExistsError:
+        if log:
+            print(f"{path} already exists")
 
 
 def chunks(lst: List, n: int) -> np.array:
@@ -29,3 +49,19 @@ def chunks(lst: List, n: int) -> np.array:
     return np.array(
         [np.array(sl) for sl in sub_lists]
     )
+
+
+def plot_digit(pixels: np.array, save: bool = False,
+               file_name: str = "image.png"):
+
+    fig, ax = plt.subplots(1)
+    ax.imshow(pixels, cmap=plt.cm.gray_r, interpolation="nearest")
+    ax.set_yticklabels([])
+    ax.set_xticklabels([])
+
+    if save:
+        create_dir(IMAGES, log=False)
+        return plt.savefig(os.path.join(IMAGES, file_name))
+    else:
+        plt.show()
+

@@ -3,6 +3,7 @@ import os
 import os.path as path
 
 from assignment_2.digits_classifiers.settings import DATASETS, TRAINING_DATA, TRAINING_LABELS
+from assignment_2.digits_classifiers.utils import create_dir
 
 out_data = path.join(DATASETS, TRAINING_DATA)
 out_labels = path.join(DATASETS, TRAINING_LABELS)
@@ -11,11 +12,7 @@ out_labels = path.join(DATASETS, TRAINING_LABELS)
 def main():
 
     # Creating Directory
-    try:
-        print(f"Creating {DATASETS}")
-        os.makedirs(DATASETS)
-    except FileExistsError:
-        print(f"{DATASETS} already exists")
+    create_dir(DATASETS)
 
     # Downloading data
     print("Fetching data")
