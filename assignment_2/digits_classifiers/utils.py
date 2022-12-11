@@ -1,6 +1,7 @@
 """
 This script ...
 """
+from __future__ import annotations
 
 import numpy as np
 import os
@@ -64,4 +65,26 @@ def plot_digit(pixels: np.array, save: bool = False,
         return plt.savefig(os.path.join(IMAGES, file_name))
     else:
         plt.show()
+
+
+def plot_digit_distribution(labels: pd.DataFrame | np.ndarray, save: bool = False,
+                            file_name: str = "plot.png"):
+
+    if type(labels) == np.ndarray:
+        labels = pd.DataFrame(labels)
+
+    digits = {
+        k[0] : v for k, v in labels.value_counts().to_dict().items()
+    }
+
+    fig, ax = plt.subplots(1)
+    ax.bar(list(digits.keys()), digits.values(), edgecolor='black')
+    ax.set_xticks(range(10))
+
+    if save:
+        create_dir(IMAGES, log=False)
+        return plt.savefig(os.path.join(IMAGES, file_name))
+    else:
+        plt.show()
+
 
