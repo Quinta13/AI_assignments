@@ -3,17 +3,18 @@ This script... TODO
 """
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 import pandas as pd
 from abc import ABC, abstractmethod
 from statistics import mean
+from loguru import logger
 from typing import Dict, Tuple, List, Iterator
 
 from numpy import ndarray
 from pandas import DataFrame
-
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score
-from sklearn.svm import SVC
 
 from assignment_2.digits_classifiers.utils import plot_digit_distribution
 
@@ -116,30 +117,51 @@ class Classifier(ABC):
     @abstractmethod
     def predict(self):
         """
-        Predict the model
+        Evaluate prediction to save in attribute y_pred
         """
         pass
 
     @property
     def predicted(self) -> np.ndarray:
+        """
+        If prediction was evaluated return predicted values,
+            otherwise it raises an exception
+        :return: predicted values
+        """
         if self._predicted:
             return self._y_pred
         raise Exception("Classifier not predicted yet")
 
     @property
     def accuracy(self) -> float:
+        """
+        If prediction was evaluated return the accuracy of prediction,
+            otherwise it raises an exception
+        :return: accuracy score of prediction
+        """
         if self._predicted:
             return accuracy_score(self._test.y, self._y_pred)
         raise Exception("Classifier not predicted yet")
 
     def change_dataset(self, train: Dataset, test: Dataset):
+        """
+        Change classifier dataset and reset flags, but leave the hyper-parameters unchanged
+        :param train: train dataset
+        :param test: test dataset
+        """
         self._train = train
         self._test = test
         self._y_pred = None
         self._fitted: bool = False
         self._predicted: bool = False
 
-    def confusion_matrix(self):
+    def confusion_matrix(self, save: bool = False, file_name: str = "confusion_matrix.png"):
+        """
+        If prediction was evaluated plot the confusion matrix;
+            it's possible to save the plot figure
+        :param save: if true the plot is saved
+        :param file_name: file name for the image if saved
+        """
         if self._predicted:
             cm = confusion_matrix(y_true=self._test.y, y_pred=self._y_pred)
             disp = ConfusionMatrixDisplay(
@@ -147,49 +169,42 @@ class Classifier(ABC):
                 display_labels=[str(n) for n in range(10)]
             )
             disp.plot()
+            if save:
+                disp.figure_.savefig(file_name, dpi=300)
         else:
             raise Exception("Classifier not predicted yet")
 
 
-class SVMClassifier(Classifier):
+class KFoldCrossValidation:
+    """
+    This class implement a k-fold Cross Validation for a classifier over a certain dataset
+    It should be used to validate some hyper-parameters
+    """
 
-    def __init__(self, train: Dataset, test: Dataset, c: int, degree: int):
-        super().__init__(train=train, test=test)
-        self.svm = SVC(C=c, degree=degree)
-        self._y_pred = None
+    def __init__(self,  classifier: Classifier, data: Dataset, k: int = 5):
+        """
 
-    def __str__(self):
-        return super().__str__() + \
-               f"C: {self.svm.C}\n" \
-               f"Degree: {self.svm.degree}"
-
-    def train(self):
-        self.svm.fit(X=self._train.X, y=self._train.y)
-        self._fitted = True
-
-    def predict(self):
-        self._y_pred = self.svm.predict(self._test.X)
-        self._predicted = True
-
-
-class SVMLinearClassifier(SVMClassifier):
-
-    def __init__(self, train: Dataset, test: Dataset, c: int):
-        super().__init__(train=train, test=test, c=c, degree=1)
-
-
-class CrossValidation:
-
-    def __init__(self, data: Dataset, k: int, classifier: Classifier):
+        :param classifier: classifier to validate
+        :param data: dataset
+        :param k: number of folds
+        """
         if k < 2:
             raise Exception("Cross validation must have at least 2 fold")
-        self._data = data
-        self._k = k
-        self._classifier = classifier
-        self._train_test = self._get_train_test()
-        self._accuracy = None
+        self._data: Dataset = data
+        self._k: bool = k
+        self._classifier: Classifier = classifier
+        self._train_test: Dict[int, Tuple[Dataset, Dataset]] = self._get_train_test()
+        self._evaluated: bool = False
+        self._accuracy: float = 0.
 
     def _get_train_test(self) -> Dict[int, Tuple[Dataset, Dataset]]:
+        """
+        It creates k sets of couples (train, test) by choosing at once
+        a single fold at time as test and the rest of folds as train set
+        :return: dictionary which values are the index of folds used as test and values
+            are the tuple of associated train and test set
+        """
+
         # compute step length and divide intervals
         step = round((len(self._data) + 1) / self._k)
         intervals: List[Tuple[int, int]] = [(i * step, (1 + i) * step - 1) for i in range(self._k)]
@@ -218,12 +233,16 @@ class CrossValidation:
         return train_test
 
     def evaluate(self):
+        """
+        It evaluates the accuracy associated to each k combination of the dataset
+            and then compute the average of the accuracy of predictions
+        """
 
         accuracies = []
 
         # get k predicts
         for index, train_test in self._train_test.items():
-            print(f"Processing fold {index + 1}")
+            logging.info(f" > Processing fold {index + 1}")
             train, test = train_test
             self._classifier.change_dataset(
                 train=train,
@@ -234,38 +253,63 @@ class CrossValidation:
             accuracies.append(self._classifier.accuracy)
 
         self._accuracy = mean(accuracies)
+        self._evaluated = True
 
     @property
-    def accuracy(self) -> float | None:
-        return self._accuracy
+    def accuracy(self) -> float:
+        if self._evaluated:
+            return self._accuracy
+        raise Exception(f"{self._k}-fold cross validation not evaluated yet")
 
 
 class ClassifierTuning:
+    """ Class that allows to tune hyper-parameters
+        evaluating the k-fold-cross-validation over a set of candidate classifier """
 
     def __init__(self, classifiers: List[Classifier],
-                 data: Dataset, k: int = 10):
-        self._classifiers = classifiers
-        self._data = data
-        self._k = k
-        self._best_accuracy = 0
-        self._best_classifier = None
+                 data: Dataset, k: int = 5):
+        """
+
+        :param: candidate classifier with different hyper-parameters to tune
+        :data: dataset over which make the evaluation
+        """
+        self._classifiers: List[Classifier] = classifiers
+        self._data: Dataset = data
+        self._k: int = k
+        self._best_accuracy: float = 0
+        self._evaluated: bool = False
+        self._best_classifier: Classifier | None = None
 
     @property
-    def best_model(self):
-        return self._best_classifier
+    def best_model(self) -> Classifier:
+        """
+        Return the best classifier if accuracy was evaluated for each candidate
+            otherwise it raises an exception
+        :return: best classifier
+        """
+        if self._evaluated:
+            return self._best_classifier
+        raise Exception("Best model tuning was not evaluated yet")
 
     def evaluate_best_model(self):
+        """
+        Evaluate the candidate classifiers with k-fold cross validation and find the best one
+        """
         for classifier in self._classifiers:
-            print(f"Evaluating classifier: \n{classifier}")
-            cross_validation = CrossValidation(
+            logger.info(f"Evaluating classifier: {classifier}")
+
+            # compute accuracy with cross validation
+            cross_validation = KFoldCrossValidation(
                 data=self._data,
                 k=self._k,
                 classifier=classifier
             )
             cross_validation.evaluate()
             accuracy = cross_validation.accuracy
-            print(accuracy)
+
+            # update best one
             if accuracy > self._best_accuracy:
-                print("Change")
                 self._best_accuracy = accuracy
                 self._best_classifier = classifier
+
+        self._evaluated = True
