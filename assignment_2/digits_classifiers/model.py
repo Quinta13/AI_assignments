@@ -1,9 +1,8 @@
 """
-This script... TODO
+This file... TODO
 """
-from __future__ import annotations
 
-import logging
+from __future__ import annotations
 
 import numpy as np
 import pandas as pd
@@ -242,7 +241,7 @@ class KFoldCrossValidation:
 
         # get k predicts
         for index, train_test in self._train_test.items():
-            logging.info(f" > Processing fold {index + 1}")
+            logger.info(f" > Processing fold {index + 1}")
             train, test = train_test
             self._classifier.change_dataset(
                 train=train,

@@ -6,11 +6,55 @@ from __future__ import annotations
 import numpy as np
 import os
 import pandas as pd
-from typing import List
+from typing import List, Any
 
 from matplotlib import pyplot as plt
 
 from assignment_2.digits_classifiers.settings import IMAGES
+
+
+class MinElementCollection:
+    """ This class represent a collection of at least k elements;
+        it keep only the minimum k elements inserted """
+
+    def __init__(self, k: int):
+        """
+
+        :param k: max size of the collection
+        :param f: guide criteria (min or max) TODO extend to generic lamda
+        """
+        self._k: int = k
+        self._elements: List[Any] = []
+
+    def __iter__(self):
+        return iter(self._elements)
+
+    def __str__(self) -> str:
+        """
+        :return: string representation for the object
+        """
+        return str(self._elements)
+
+    def __repr__(self) -> str:
+        """
+        :return: string representation for the object
+        """
+        return str(self)
+
+    def push(self, element: Any):
+        """
+        Add en element to the collection according polices
+        """
+        if len(self._elements) < self._k:
+            self._elements.append(element)
+        else:
+            max_ = max(self._elements)
+            if element < max_:
+                self._elements[self._elements.index(max_)] = element
+
+    @property
+    def elements(self) -> List:
+        return self._elements
 
 
 def create_dir(path: str, log: bool = True):
@@ -54,7 +98,6 @@ def chunks(lst: List, n: int) -> np.array:
 
 def plot_digit(pixels: np.array, save: bool = False,
                file_name: str = "image.png"):
-
     fig, ax = plt.subplots(1)
     ax.imshow(pixels, cmap=plt.cm.gray_r, interpolation="nearest")
     ax.set_yticklabels([])
@@ -69,12 +112,11 @@ def plot_digit(pixels: np.array, save: bool = False,
 
 def plot_digit_distribution(labels: pd.DataFrame | np.ndarray, save: bool = False,
                             file_name: str = "plot.png"):
-
     if type(labels) == np.ndarray:
         labels = pd.DataFrame(labels)
 
     digits = {
-        k[0] : v for k, v in labels.value_counts().to_dict().items()
+        k[0]: v for k, v in labels.value_counts().to_dict().items()
     }
 
     fig, ax = plt.subplots(1)
@@ -86,5 +128,3 @@ def plot_digit_distribution(labels: pd.DataFrame | np.ndarray, save: bool = Fals
         return plt.savefig(os.path.join(IMAGES, file_name))
     else:
         plt.show()
-
-
