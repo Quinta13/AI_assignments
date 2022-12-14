@@ -196,6 +196,12 @@ class Neighbor:
         """
         return str(self)
 
+    def __gt__(self, other: Neighbor) -> bool:
+        return self.distance > other.distance
+
+    def __lt__(self, other: Neighbor) -> bool:
+        return not self.__gt__(other=other)
+
 
 class Neighbourhood:
     """
@@ -252,6 +258,12 @@ class KNN(Classifier, ABC):
         self._distance_fun = distance_fun
         self._k = k
 
+    def __str__(self) -> str:
+        """
+        Return string representation of the object
+        """
+        return super().__str__() + f" - [K: {self._k}]"
+
     def train(self):
         """
         Train the dataset
@@ -265,8 +277,9 @@ class KNN(Classifier, ABC):
 
         predictions = []  # list of y_pred
 
-        for idx, test in self._test.X.iterrows():  # predict foreach instance in test
-            idx = int(idx)
+        for idx, test in enumerate(self._test.X.iterrows()):  # predict foreach instance in test
+            _, test = test
+            int(idx)
             if idx % 10 == 0:
                 logger.info(f" > {idx * 100 / len(self._test):.3f}%")
             test = test.values  # test row as an array
@@ -275,8 +288,8 @@ class KNN(Classifier, ABC):
                 _, train = row
                 train = train.values  # train row as an array
                 dist = self._distance_fun(test, train)
-                neighs.push((dist, label))
-            neighborhood = Neighbourhood(neighbourhood=[Neighbor(label=label, distance=dist) for dist, label in neighs])
+                neighs.push(Neighbor(distance=dist, label=label))
+            neighborhood = Neighbourhood(neighbourhood=neighs.elements)
             predictions.append(neighborhood.mode_neighbourhood)
 
         self._y_pred = np.array(predictions)
