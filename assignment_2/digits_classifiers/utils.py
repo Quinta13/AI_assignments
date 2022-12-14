@@ -8,9 +8,10 @@ import os
 import pandas as pd
 from typing import List, Any
 
+from loguru import logger
 from matplotlib import pyplot as plt
 
-from assignment_2.digits_classifiers.settings import IMAGES
+from assignment_2.digits_classifiers.settings import IMAGES, get_root_dir
 
 
 class MinElementCollection:
@@ -65,11 +66,11 @@ def create_dir(path: str, log: bool = True):
     """
     try:
         if log:
-            print(f"Creating {path}")
+            logger.info(f"Creating {path}")
         os.makedirs(path)
     except FileExistsError:
         if log:
-            print(f"{path} already exists")
+            logger.info(f"{path} already exists")
 
 
 def chunks(lst: List, n: int) -> np.array:
@@ -104,8 +105,9 @@ def plot_digit(pixels: np.array, save: bool = False,
     ax.set_xticklabels([])
 
     if save:
-        create_dir(IMAGES, log=False)
-        return plt.savefig(os.path.join(IMAGES, file_name))
+        image_dir = os.path.join(get_root_dir(), IMAGES)
+        create_dir(image_dir, log=False)
+        return plt.savefig(os.path.join(image_dir, file_name))
     else:
         plt.show()
 
@@ -124,7 +126,8 @@ def plot_digit_distribution(labels: pd.DataFrame | np.ndarray, save: bool = Fals
     ax.set_xticks(range(10))
 
     if save:
-        create_dir(IMAGES, log=False)
-        return plt.savefig(os.path.join(IMAGES, file_name))
+        image_dir = os.path.join(get_root_dir(), IMAGES)
+        create_dir(image_dir, log=False)
+        return plt.savefig(os.path.join(image_dir, file_name))
     else:
         plt.show()
