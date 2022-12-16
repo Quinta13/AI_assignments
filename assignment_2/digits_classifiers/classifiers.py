@@ -6,9 +6,10 @@ from __future__ import annotations
 
 from abc import ABC
 from statistics import mode
-from typing import List, Callable
+from typing import List, Callable, Dict, Any
 
 import numpy as np
+from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from loguru import logger
@@ -21,149 +22,125 @@ from assignment_2.digits_classifiers.utils import MinElementCollection
 
 class SVM(Classifier, ABC):
     """
-    This abstract class represent a Support Vector Machine classifier
+    This class represent a Support Vector Machine classifier
+        it considers following parameters:
+            - C, regularization parameter
+            - kernel, kernel-type of the algorithm
+            - degree, degree of function for polynomial kernel
     """
 
     classifier_name = f"SVM"
 
-    def __init__(self, train: Dataset, test: Dataset, svm: SVC):
+    def __init__(self, train: Dataset, test: Dataset,
+                 params: Dict | None = None):
         """
 
         :param train: train dataset
         :param test: test dataset
-        :param svm: support vector machine classifier
-        """
-        super().__init__(train=train, test=test)
-        self.svm = svm
-
-    def train(self):
-        """
-        Train the dataset
-        """
-        self.svm.fit(X=self._train.X, y=self._train.y)
-        self._fitted = True
-
-    def predict(self):
-        """
-        Evaluate predictions over the test set
-        """
-        self._y_pred = self.svm.predict(self._test.X)
-        self._predicted = True
-
-
-class SVMPolynomialClassifier(SVM):
-    """
-    This class represent a Support Vector Machine classifier with hyperparameter:
-        - C: Regularization factor
-        - degree: Degree of polynomial kernel function
-    """
-
-    classifier_name = f"PolynomialSVM"
-
-    def __init__(self, train: Dataset, test: Dataset, c: float = 1., degree: int = 1):
+        :param params: dictionary with possible keys 'C'; 'degree'; 'kernel'
         """
 
-        :param train: train dataset
-        :param test: test dataset
-        :param c: regularization factor
-        :param degree: degree of polynomial
-        """
-        super().__init__(train=train, test=test,
-                         svm=SVC(C=c, degree=degree, kernel="poly", ))
+        # super class
+        super().__init__(train=train, test=test, params=params)
 
-    def __str__(self) -> str:
+        # params
+        if params is None:
+            params = {}
+
+        self._C: float    = params["C"]      if "C"      in params.keys() else 1.
+        self._degree: int = params["degree"] if "degree" in params.keys() else 3
+        self._kernel: str = params["kernel"] if "kernel" in params.keys() else "rbf"
+
+        # estimator
+        self._estimator: BaseEstimator = SVC(C=self._C, kernel=self._kernel, degree=self._degree)
+
+        self.classifier_name = "LinearSVM" if self._kernel == 'linear' else \
+            "PolynomialSVM" if self._kernel == "poly" else "RBFKernelSVM"
+
+    def __str__(self):
         """
         Return string representation of the object
         """
-        return super().__str__() + f" - [C: {self.svm.C}, Degree: {self.svm.degree}]"
+        parameters = f" [C: {self._C}; degree: {self._degree}]" if self.classifier_name == "PolynomialSVM" \
+            else f"[C: {self._C}]"
+        return super(SVM, self).__str__() + parameters
 
-
-class SVMLinearClassifier(SVM):
-    """
-    This class represent a Linear Support Vector Classifier
-        it's a sub-case of PolynomialSVM with degree equal to one
-    """
-
-    classifier_name = "LinearSVM"
-
-    def __init__(self, train: Dataset, test: Dataset, c: int):
+    def params(self) -> Dict[str, Any]:
         """
-
-        :param train: train dataset
-        :param test: test dataset
-        :param c: regularization factor
+        :return: hyper-parameters
         """
-        super().__init__(train=train, test=test, svm=SVC(C=c, kernel='linear'))
+        return {
+            "C": self._C,
+            "kernel": self._kernel,
+            "degree": self._degree
+        }
 
-    def __str__(self) -> str:
+    @staticmethod
+    def default_estimator() -> BaseEstimator:
         """
-        Return string representation of the object
+        :return: classifier default estimator
         """
-        return super().__str__() + f" - [C: {self.svm.C}]"
-
-
-class SVMRBFKernelsClassifier(SVM):
-    """
-    This class represent a Support Vector Classifier with a RBF kernel
-    """
-
-    classifier_name = "RBFKernelsSVM"
-
-    def __init__(self, train: Dataset, test: Dataset, c: int):
-        """
-
-        :param train: train dataset
-        :param test: test dataset
-        :param c: regularization factor
-        """
-        super().__init__(train=train, test=test, svm=SVC(C=c, kernel="rbf"))
-
-    def __str__(self) -> str:
-        """
-        Return string representation of the object
-        """
-        return super().__str__() + f" - [C: {self.svm.C}]"
+        return SVC()
 
 
 """ RANDOM FOREST """
 
 
 class RandomForest(Classifier, ABC):
+    """
+    This class represent a Random Forest classifier
+        it considers following parameters:
+            - n_estimators, number of three of the forest
+            - max_depth, maximum depth of the tree
+    """
 
     classifier_name = f"RandomForest"
 
     def __init__(self, train: Dataset, test: Dataset,
-                 n_estimators: int = 100, max_depth: int = 100):
+                 params: Dict | None = None):
         """
+
         :param train: train dataset
         :param test: test dataset
-        :param n_estimators: number of trees
-        :param max_depth:
+        :param params: dictionary with possible keys 'n_estimators'; 'max_depth'
         """
-        super().__init__(train=train, test=test)
-        self._n_estimators = n_estimators
-        self._max_depth = max_depth
-        self._random_forest = RandomForestClassifier(max_depth=self._max_depth, n_estimators=self._n_estimators)
 
-    def train(self):
-        """
-        Train the dataset
-        """
-        self._random_forest.fit(X=self._train.X, y=self._train.y)
-        self._fitted = True
+        # super class
+        super().__init__(train=train, test=test, params=params)
 
-    def predict(self):
-        """
-        Evaluate predictions over the test set
-        """
-        self._y_pred = self._random_forest.predict(self._test.X)
-        self._predicted = True
+        # params
+        if params is None:
+            params = {}
+
+        self._n_estimators: int        = params["n_estimators"] if "n_estimators" in params.keys() else 100
+        self._max_depth:    int | None = params["max_depth"]    if "max_depth"    in params.keys() else None
+
+        # estimator
+        self._estimator: BaseEstimator = RandomForestClassifier(
+            n_estimators=self._n_estimators, max_depth=self._max_depth, n_jobs=-1
+        )
 
     def __str__(self):
         """
         Return string representation of the object
         """
-        return super().__str__() + f" - [N-estimators: {self._n_estimators}; Max-Depth: {self._max_depth}]"
+        return super(RandomForest, self).__str__() + f" [N-trees: {self._n_estimators}; Max-depth: {self._max_depth}]"
+
+    def params(self) -> Dict[str, Any]:
+        """
+        :return: hyper-parameters
+        """
+        return {
+            "n_estimators": self._n_estimators,
+            "max_depth": self._max_depth
+        }
+
+    @staticmethod
+    def default_estimator() -> BaseEstimator:
+        """
+        :return: classifier default estimator
+        """
+        return RandomForestClassifier()
 
 
 """ K - NEAREST NEIGHBOR """

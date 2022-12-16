@@ -9,11 +9,13 @@ import pandas as pd
 from abc import ABC, abstractmethod
 from statistics import mean
 from loguru import logger
-from typing import Dict, Tuple, List, Iterator
+from typing import Dict, Tuple, List, Iterator, Any
 
 from numpy import ndarray
 from pandas import DataFrame
+from sklearn.base import BaseEstimator
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score
+from sklearn.model_selection import GridSearchCV
 
 from assignment_2.digits_classifiers.utils import plot_digit_distribution
 
@@ -75,7 +77,7 @@ class Classifier(ABC):
 
     classifier_name = "Classifier"
 
-    def __init__(self, train: Dataset, test: Dataset):
+    def __init__(self, train: Dataset, test: Dataset, params: Dict[str, Any]):
         """
 
         :param train: train dataset
@@ -88,6 +90,7 @@ class Classifier(ABC):
         self._y_pred: np.ndarray | None = None
         self._fitted: bool | None = None
         self._predicted: bool | None = None
+        self._estimator: BaseEstimator | None = None
 
         self.change_dataset(
             train=train,
@@ -98,7 +101,8 @@ class Classifier(ABC):
         """
         :return: class stringify
         """
-        return f"[{self.classifier_name}: Train {len(self._train)}, Test {len(self._test)}]"
+        return f"[{self.classifier_name}: Train {len(self._train)}, Test {len(self._test)}, "\
+            f"{'' if self._fitted else 'not'} fitted, {'' if self._predicted else 'not'} predicted]"
 
     def __repr__(self) -> str:
         """
@@ -106,19 +110,25 @@ class Classifier(ABC):
         """
         return str(self)
 
-    @abstractmethod
     def train(self):
         """
         Train the model
         """
-        pass
+        self._estimator.fit(X=self._train.X, y=self._train.y)
+        self._fitted = True
 
-    @abstractmethod
     def predict(self):
         """
         Evaluate prediction to save in attribute y_pred
         """
-        pass
+        if not self._fitted:
+            raise Exception("Classifier not fitted yet")
+        self._y_pred = self._estimator.predict(X=self._test.X)
+        self._predicted = True
+
+    @property
+    def estimator(self) -> BaseEstimator:
+        return self._estimator
 
     @property
     def predicted(self) -> np.ndarray:
@@ -172,6 +182,17 @@ class Classifier(ABC):
                 disp.figure_.savefig(file_name, dpi=300)
         else:
             raise Exception("Classifier not predicted yet")
+
+    @abstractmethod
+    def params(self) -> Dict[str, Any]:
+        """ Return hyper-parameters as a dictionary """
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def default_estimator() -> BaseEstimator:
+        """ Return base estimator with default parameters """
+        pass
 
 
 class KFoldCrossValidation:
@@ -265,7 +286,7 @@ class ClassifierTuning:
     """ Class that allows to tune hyper-parameters
         evaluating the k-fold-cross-validation over a set of candidate classifier """
 
-    def __init__(self, classifiers: List[Classifier],
+    def __init__(self, base_estimator: BaseEstimator, classifiers: List[Classifier],
                  data: Dataset, k: int = 5):
         """
 
@@ -275,40 +296,54 @@ class ClassifierTuning:
         self._classifiers: List[Classifier] = classifiers
         self._data: Dataset = data
         self._k: int = k
-        self._best_accuracy: float = 0
         self._evaluated: bool = False
-        self._best_classifier: Classifier | None = None
+        self._base_estimator: BaseEstimator = base_estimator
+        self._tuning_params: Dict[str, Any] = self._get_tuning_params()
+        self._grid_search = GridSearchCV(estimator=self._base_estimator, cv=self._k,
+                                         param_grid=self._tuning_params, n_jobs=-1)
+
+    def __str__(self) -> str:
+        return f"[Estimator: {self._base_estimator}; K: {self._k}; Params: {self._tuning_params}]"
+
+    def __repr__(self) -> str:
+        return str(self)
 
     @property
-    def best_model(self) -> Classifier:
+    def best_params(self) -> Dict:
         """
         Return the best classifier if accuracy was evaluated for each candidate
             otherwise it raises an exception
         :return: best classifier
         """
         if self._evaluated:
-            return self._best_classifier
+            return self._grid_search.best_params_
         raise Exception("Best model tuning was not evaluated yet")
 
-    def evaluate_best_model(self):
+    def evaluate(self):
         """
-        Evaluate the candidate classifiers with k-fold cross validation and find the best one
+        TODO
         """
-        for classifier in self._classifiers:
-            logger.info(f"Evaluating classifier: {classifier}")
-
-            # compute accuracy with cross validation
-            cross_validation = KFoldCrossValidation(
-                data=self._data,
-                k=self._k,
-                classifier=classifier
-            )
-            cross_validation.evaluate()
-            accuracy = cross_validation.accuracy
-
-            # update best one
-            if accuracy > self._best_accuracy:
-                self._best_accuracy = accuracy
-                self._best_classifier = classifier
-
+        self._grid_search.fit(self._data.X, self._data.y)
         self._evaluated = True
+
+    def _get_tuning_params(self) -> Dict[str, Any]:
+        """
+        TODO
+        """
+
+        # emptiness check
+        if len(self._classifiers) == 0:
+            raise Exception("No classifier given")
+        params = [classifier.params() for classifier in self._classifiers]
+        keys = set(params[0].keys())
+
+        # same params check
+        for param in params:
+            if set(set(param.keys())) != keys:
+                raise Exception("Trying to tune different type of classifiers")
+
+        return ({
+            key: list(set([param[key] for param in params])) for key in keys
+        })
+
+
