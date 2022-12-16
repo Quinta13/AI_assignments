@@ -9,10 +9,12 @@ from statistics import mode
 from typing import List, Callable, Dict, Any
 
 import numpy as np
+import pandas as pd
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from loguru import logger
+from scipy.spatial import distance
 
 from assignment_2.digits_classifiers.model import Classifier, Dataset
 from assignment_2.digits_classifiers.utils import MinElementCollection
@@ -219,55 +221,101 @@ class Neighbourhood:
         return mode([n.label for n in self._neighbourhood])
 
 
-class KNN(Classifier, ABC):
-    classifier_name = "k-NEAREST-NEIGHBORHOOD"
+class KNNEstimator(BaseEstimator):
 
-    def __init__(self, train: Dataset, test: Dataset,
-                 distance_fun: Callable, k: int = 1):
+    def __init__(self, k: int = 1, f_distance: Callable = distance.euclidean):
         """
 
-        :param train: train dataset
-        :param test: test dataset
-        :param distance_fun: function to compute distance between two arrays
-        :param k: number of neighbors
+        :param k: number of neighbor to consider
+        :param f_distance: function computing distance between two point in a vector space
         """
-        super().__init__(train=train, test=test)
-        self._distance_fun = distance_fun
-        self._k = k
+        self.train: Dataset | None = None
+        self.k: int = k
+        self.f_distance: Callable = f_distance
 
-    def __str__(self) -> str:
-        """
-        Return string representation of the object
-        """
-        return super().__str__() + f" - [K: {self._k}]"
+    def fit(self, X: pd.DataFrame, y: pd):
+        self.train = Dataset(x=X, y=y)
 
-    def train(self):
-        """
-        Train the dataset
-        """
-        pass
-
-    def predict(self):
+    def predict(self, X: pd.DataFrame) -> np.ndarray:
         """
         Evaluate predictions over the test set
+        :return: prediction
         """
 
         predictions = []  # list of y_pred
 
-        for idx, test in enumerate(self._test.X.iterrows()):  # predict foreach instance in test
+        log_info = 10  # logging step
+
+        for idx, test in enumerate(X.iterrows()):  # predict foreach instance in test
             _, test = test
             int(idx)
-            if idx % 10 == 0:
-                logger.info(f" > {idx * 100 / len(self._test):.3f}%")
+            if idx % log_info == 0:
+                logger.info(f" > {idx * 100 / len(X):.3f}%")
             test = test.values  # test row as an array
-            neighs = MinElementCollection(k=self._k)  # collection of neighbors
-            for row, label in zip(self._train.X.iterrows(), self._train.y):  # iterate over train set
+            neighs = MinElementCollection(k=self.k)  # collection of neighbors
+            for row, label in zip(self.train.X.iterrows(), self.train.y):  # iterate over train set
                 _, train = row
                 train = train.values  # train row as an array
-                dist = self._distance_fun(test, train)
+                dist = self.f_distance(test, train)
                 neighs.push(Neighbor(distance=dist, label=label))
             neighborhood = Neighbourhood(neighbourhood=neighs.elements)
             predictions.append(neighborhood.mode_neighbourhood)
 
-        self._y_pred = np.array(predictions)
-        self._predicted = True
+        return np.array(predictions)
+
+
+class KNN(Classifier, ABC):
+    """
+    This class represent a K-nearest-neighborhood classifier
+        it considers following parameters:
+            - k, number of neighbors
+            - f_distance, distance function between two points
+    """
+
+    classifier_name = f"KNN"
+
+    def __init__(self, train: Dataset, test: Dataset,
+                 params: Dict | None = None):
+        """
+
+        :param train: train dataset
+        :param test: test dataset
+        :param params: dictionary with possible keys 'k'; 'f_distance'
+        """
+
+        # super class
+        super().__init__(train=train, test=test, params=params)
+
+        # params
+        if params is None:
+            params = {}
+
+        self.k: int               = params["k"]          if "k" in params.keys() else 1
+        self.f_distance: Callable = params["f_distance"] if "f_distance" in params.keys() else distance.euclidean
+
+        # estimator
+        self._estimator: BaseEstimator = KNNEstimator(
+            k=self.k, f_distance=self.f_distance
+        )
+
+    def __str__(self):
+        """
+        Return string representation of the object
+        """
+        return super(KNN, self).__str__() + f" [k: {self.k}; distance: {self.f_distance}]"
+
+    def params(self) -> Dict[str, Any]:
+        """
+        :return: hyper-parameters
+        """
+        return {
+            "k": self.k,
+            "f_distance": self.f_distance
+        }
+
+    @staticmethod
+    def default_estimator() -> BaseEstimator:
+        """
+        :return: classifier default estimator
+        """
+        return KNNEstimator()

@@ -300,7 +300,7 @@ class ClassifierTuning:
         self._base_estimator: BaseEstimator = base_estimator
         self._tuning_params: Dict[str, Any] = self._get_tuning_params()
         self._grid_search = GridSearchCV(estimator=self._base_estimator, cv=self._k,
-                                         param_grid=self._tuning_params, n_jobs=-1)
+                                         scoring='accuracy', param_grid=self._tuning_params, n_jobs=-1)
 
     def __str__(self) -> str:
         return f"[Estimator: {self._base_estimator}; K: {self._k}; Params: {self._tuning_params}]"
