@@ -5,11 +5,12 @@ This file... TODO
 from __future__ import annotations
 
 from abc import ABC
-from statistics import mode
-from typing import List, Callable, Dict, Any
+from statistics import mode, mean, variance
+from typing import List, Callable, Dict, Any, Tuple
 
 import numpy as np
 import pandas as pd
+from scipy.stats import beta
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
@@ -49,7 +50,7 @@ class SVM(Classifier, ABC):
         if params is None:
             params = {}
 
-        self._C: float    = params["C"]      if "C"      in params.keys() else 1.
+        self._C: float = params["C"] if "C" in params.keys() else 1.
         self._degree: int = params["degree"] if "degree" in params.keys() else 3
         self._kernel: str = params["kernel"] if "kernel" in params.keys() else "rbf"
 
@@ -114,8 +115,8 @@ class RandomForest(Classifier, ABC):
         if params is None:
             params = {}
 
-        self._n_estimators: int        = params["n_estimators"] if "n_estimators" in params.keys() else 100
-        self._max_depth:    int | None = params["max_depth"]    if "max_depth"    in params.keys() else None
+        self._n_estimators: int = params["n_estimators"] if "n_estimators" in params.keys() else 100
+        self._max_depth: int | None = params["max_depth"] if "max_depth" in params.keys() else None
 
         # estimator
         self._estimator: BaseEstimator = RandomForestClassifier(
@@ -290,7 +291,7 @@ class KNN(Classifier, ABC):
         if params is None:
             params = {}
 
-        self.k: int               = params["k"]          if "k" in params.keys() else 1
+        self.k: int = params["k"] if "k" in params.keys() else 1
         self.f_distance: Callable = params["f_distance"] if "f_distance" in params.keys() else distance.euclidean
 
         # estimator
@@ -319,3 +320,196 @@ class KNN(Classifier, ABC):
         :return: classifier default estimator
         """
         return KNNEstimator()
+
+
+""" BAYES """
+
+
+class PixelInfo:
+
+    """ This class represent the information of a pixel of a certain class
+        with specific relation to the beta-distribution"""
+
+    def __init__(self, mean_: float, var: float):
+        """
+
+        :param mean_: mean of the distribution
+        :param var: variance of the distribution
+        """
+        self.mean = mean_
+        self.var = var
+
+    @property
+    def k(self) -> float:
+        """
+        :return: K defined as ( E[X] (1 - E[X]) / Var(X) ) - 1
+        """
+        return self.mean * (1 - self.mean) / self.var - 1
+
+    @property
+    def k_defined(self) -> bool:
+        """
+        :return: is K defined for this pixel
+            if not i probably derives from invalid mathematical definitions, s.a. division by zero
+        """
+        return not np.isnan(self.k)
+
+    @property
+    def alpha(self) -> float:
+        """
+        :return: alpha parameter for beta distribution defined as K E[X]
+        """
+        return self.k * self.mean
+
+    @property
+    def beta(self) -> float:
+        """
+        :return: beta parameter for beta-distribution defined as K  (1 - E[X])
+        """
+        return self.k * (1 - self.mean)
+
+    @property
+    def beta_distribution_fun(self) -> Callable[[float], float]:
+        """
+        :return: function to evaluate the beta-distribution based on class-properties alpha and beta
+            if k is not defined for the class, the function in output produces the constant value 1
+        """
+        if self.k_defined and self.alpha > 0 and self.beta > 0:
+            e = 0.1
+            return lambda x: beta.cdf(x=x+e, a=self.alpha, b=self.beta) - beta.cdf(x=x-e, a=self.alpha, b=self.beta)
+        return lambda x: 1.
+
+    def beta_distribution(self, x: float) -> float:
+        """
+        :param x: point of evaluation
+        :return: probability mass function evaluation at point x
+        """
+        return self.beta_distribution_fun(x)
+
+    def __str__(self) -> str:
+        """
+        :return: string representation of the object
+        """
+        return f"Pixel[mean: {self.mean}; var: {self.var}" +\
+            (f" k: {self.k}, alpha: {self.alpha}, beta: {self.beta}" if self.k_defined else f"") +\
+            f"]"
+
+    def __repr__(self) -> str:
+        """
+        :return: string representation of the object
+        """
+        return str(self)
+
+    @staticmethod
+    def get_pixel_info(X: pd.DataFrame) -> Dict[str, PixelInfo]:
+        """
+        :param X: dataset representing the same label
+        :return: mapping between pixel (column) and its information
+        """
+
+        # mapping between column and its values
+        col_values: Dict[str, np.ndarray] = {
+            pixel: X.loc[: , pixel].values for pixel in X.columns
+        }
+        # mapping between column and its info
+        pixels: Dict[str, PixelInfo] = {
+            pixel: PixelInfo(mean_=mean(values), var=variance(values))
+            for pixel, values in col_values.items()
+        }
+        return pixels
+
+
+class BayesEstimator(BaseEstimator):
+
+    def __init__(self):
+        """
+        BayesEstimator have no actually hyper-parameters
+        """
+        # pixels maps a label to a mapping between a column and its relative information
+        #   label : (column : pixel_info)
+        self.pixels: Dict[str, Dict[str, PixelInfo]] | None = None
+
+    def fit(self, X: pd.DataFrame, y: pd):
+        """
+        :param X: feature space
+        :param y: labels
+        Save pixel information for each class and for each relative pixel
+        """
+
+        labeled_dataset: Dict[str, pd.DataFrame] = {
+            l: X.loc[y == l] for l in list(set(y))
+        }
+
+        self.pixels = {
+            label: PixelInfo.get_pixel_info(X=X)
+            for label, X in labeled_dataset.items()
+        }
+
+    def predict(self, X: pd.DataFrame) -> np.ndarray:
+
+        prediction = []
+        for _, row in X.iterrows():
+            prediction.append(
+                self._single_predict(values=row.values)
+            )
+        return np.array(prediction)
+
+    def _single_predict(self, values: np.ndarray) -> int:
+        """
+        Compute a prediction for a test-instance
+        :param values: values of instance to predict (point in the feature space)
+        :return: predicted class
+        """
+
+        # tuple class, log-likelihood
+        log_likelihood: List[Tuple[float, int]] = [
+            (
+                np.product([
+                    pxl.beta_distribution(val) for val, pxl in zip(values, pixels_info.values())
+                ]),
+                int(label)
+            ) for label, pixels_info in self.pixels.items()
+        ]
+        _, label = max(log_likelihood)
+        return label
+
+
+class BayesClassifier(Classifier, ABC):
+    """
+    This class represent a BayesClassifier
+    """
+
+    classifier_name = f"BayesClassifier"
+
+    def __init__(self, train: Dataset, test: Dataset):
+        """
+
+        :param train: train dataset
+        :param test: test dataset
+        """
+
+        # super class, this classifier has not hyper-parameter
+        super().__init__(train=train, test=test, params={})
+
+        # estimator
+        self._estimator: BaseEstimator = BayesEstimator()
+
+    def __str__(self):
+        """
+        Return string representation of the object
+        """
+        return super(BayesClassifier, self).__str__()
+
+    def params(self) -> Dict[str, Any]:
+        """
+        :return: hyper-parameters
+        """
+        # it has no hyper-parameter
+        return {}
+
+    @staticmethod
+    def default_estimator() -> BaseEstimator:
+        """
+        :return: classifier default estimator
+        """
+        return BayesClassifier()

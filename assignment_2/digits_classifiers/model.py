@@ -17,7 +17,7 @@ from sklearn.base import BaseEstimator
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score
 from sklearn.model_selection import GridSearchCV
 
-from assignment_2.digits_classifiers.utils import plot_digit_distribution
+from assignment_2.digits_classifiers.utils import digits_histogram
 
 
 class Dataset:
@@ -67,7 +67,7 @@ class Dataset:
         """
         STUB for util function
         """
-        plot_digit_distribution(labels=self.y)
+        digits_histogram(labels=self.y)
 
 
 class Classifier(ABC):
@@ -303,9 +303,15 @@ class ClassifierTuning:
                                          scoring='accuracy', param_grid=self._tuning_params, n_jobs=-1)
 
     def __str__(self) -> str:
+        """
+        :return: string representation for the object
+        """
         return f"[Estimator: {self._base_estimator}; K: {self._k}; Params: {self._tuning_params}]"
 
     def __repr__(self) -> str:
+        """
+        :return: string representation for the object
+        """
         return str(self)
 
     @property
@@ -313,7 +319,7 @@ class ClassifierTuning:
         """
         Return the best classifier if accuracy was evaluated for each candidate
             otherwise it raises an exception
-        :return: best classifier
+        :return: best parameters evaluated by the grid-search
         """
         if self._evaluated:
             return self._grid_search.best_params_
@@ -321,14 +327,16 @@ class ClassifierTuning:
 
     def evaluate(self):
         """
-        TODO
+        Evaluate the grid-search
+            basically is a wrapper for sklearn method
         """
         self._grid_search.fit(self._data.X, self._data.y)
         self._evaluated = True
 
     def _get_tuning_params(self) -> Dict[str, Any]:
         """
-        TODO
+        It produces the list of hyper-parameters to tune
+            basing on the list of classifiers
         """
 
         # emptiness check
