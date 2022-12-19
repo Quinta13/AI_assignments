@@ -139,10 +139,12 @@ def digits_histogram(labels: pd.DataFrame | np.ndarray, save: bool = False,
     if type(labels) == np.ndarray:
         labels = pd.DataFrame(labels)
 
+    # digits count
     digits: Dict[str, int] = {
         k[0]: v for k, v in labels.value_counts().to_dict().items()
     }
 
+    # plot
     fig, ax = plt.subplots(1)
     ax.bar(list(digits.keys()), digits.values(), edgecolor='black')
     ax.set_xticks(range(10))

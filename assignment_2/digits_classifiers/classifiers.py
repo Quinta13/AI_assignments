@@ -429,7 +429,10 @@ class BayesEstimator(BaseEstimator):
         #   label : (column : pixel_info)
         self.pixels: Dict[str, Dict[str, PixelInfo]] | None = None
 
-    def fit(self, X: pd.DataFrame, y: pd):
+        # frequency of labels
+        self._labels: Dict[str, float] | None = None
+
+    def fit(self, X: pd.DataFrame, y: np.ndarray):
         """
         :param X: feature space
         :param y: labels
@@ -445,12 +448,22 @@ class BayesEstimator(BaseEstimator):
             for label, X in labeled_dataset.items()
         }
 
+        self._labels = {
+            k[0]: v for k, v in pd.DataFrame(y).value_counts().to_dict().items()
+        }
+
     def predict(self, X: pd.DataFrame) -> np.ndarray:
 
         prediction = []
-        for _, row in X.iterrows():
+
+        log_info = 10
+
+        for idx, test in enumerate(X.iterrows()):  # predict foreach instance in test
+            if idx % log_info == 0:
+                logger.info(f" > {idx * 100 / len(X):.3f}%")
+            _, test = test
             prediction.append(
-                self._single_predict(values=row.values)
+                self._single_predict(values=test.values)
             )
         return np.array(prediction)
 
@@ -464,7 +477,7 @@ class BayesEstimator(BaseEstimator):
         # tuple class, log-likelihood
         log_likelihood: List[Tuple[float, int]] = [
             (
-                np.product([
+                self._labels[label] * np.product([
                     pxl.beta_distribution(val) for val, pxl in zip(values, pixels_info.values())
                 ]),
                 int(label)
@@ -474,7 +487,7 @@ class BayesEstimator(BaseEstimator):
         return label
 
 
-class BayesClassifier(Classifier, ABC):
+class NaiveBayes(Classifier, ABC):
     """
     This class represent a BayesClassifier
     """
@@ -498,7 +511,7 @@ class BayesClassifier(Classifier, ABC):
         """
         Return string representation of the object
         """
-        return super(BayesClassifier, self).__str__()
+        return super(NaiveBayes, self).__str__()
 
     def params(self) -> Dict[str, Any]:
         """
@@ -512,4 +525,4 @@ class BayesClassifier(Classifier, ABC):
         """
         :return: classifier default estimator
         """
-        return BayesClassifier()
+        return BayesEstimator()
