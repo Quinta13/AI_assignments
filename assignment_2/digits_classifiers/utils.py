@@ -148,6 +148,9 @@ def digits_histogram(labels: pd.DataFrame | np.ndarray, save: bool = False,
     fig, ax = plt.subplots(1)
     ax.bar(list(digits.keys()), digits.values(), edgecolor='black')
     ax.set_xticks(range(10))
+    ax.set_title('Digits distribution')
+    ax.set_xlabel('Classes')
+    ax.set_ylabel('Counts')
 
     if save:
         image_dir = os.path.join(get_root_dir(), IMAGES)

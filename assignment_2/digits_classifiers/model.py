@@ -4,6 +4,8 @@ This file... TODO
 
 from __future__ import annotations
 
+from os import path
+
 import numpy as np
 import pandas as pd
 from abc import ABC, abstractmethod
@@ -17,6 +19,7 @@ from sklearn.base import BaseEstimator
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score
 from sklearn.model_selection import GridSearchCV
 
+from assignment_2.digits_classifiers.settings import IMAGES, get_root_dir
 from assignment_2.digits_classifiers.utils import digits_histogram
 
 
@@ -63,11 +66,13 @@ class Dataset:
         """
         return f"[Features: {len(self.X.columns)}; Length: {len(self)}]"
 
-    def digit_distribution(self):
+    def digit_distribution(self, save: bool = False, file_name: str = 'histo.png'):
         """
         STUB for util function
+        :param save: true to save the image
+        :param file_name: file name if image is saved
         """
-        digits_histogram(labels=self.y)
+        digits_histogram(labels=self.y, save=save, file_name=file_name)
 
 
 class Classifier(ABC):
@@ -179,7 +184,9 @@ class Classifier(ABC):
             )
             disp.plot()
             if save:
-                disp.figure_.savefig(file_name, dpi=300)
+                save_path = path.join(get_root_dir(), IMAGES, file_name)
+                logger.info(f"Saving {save_path}")
+                disp.figure_.savefig(save_path, dpi=300)
         else:
             raise Exception("Classifier not predicted yet")
 
