@@ -14,5 +14,7 @@ def get_root_dir() -> str:
 
 DATASETS = "datasets"
 IMAGES = "images"
+IN_IMAGES = "in_images"
+
 TRAINING_DATA = "pixels.csv"
 TRAINING_LABELS = "labels.csv"

@@ -87,6 +87,7 @@ class Classifier(ABC):
 
         :param train: train dataset
         :param test: test dataset
+        :param params: dictionary mapping hyperparameter name to related value
         """
 
         # fields declaration
@@ -95,7 +96,7 @@ class Classifier(ABC):
         self._y_pred: np.ndarray | None = None
         self._fitted: bool | None = None
         self._predicted: bool | None = None
-        self._estimator: BaseEstimator | None = None
+        self._estimator: BaseEstimator | None = None  # need to be assigned in subclassed
 
         self.change_dataset(
             train=train,
@@ -164,9 +165,17 @@ class Classifier(ABC):
         :param test: test dataset
         """
         self._train = train
+        self._fitted: bool = False
+        self.change_test(test=test)
+
+    def change_test(self, test: Dataset):
+        """
+        Change classifier test dataset and reset predicted flag, but leave trained model unchanged
+        :param train: train dataset
+        :param test: test dataset
+        """
         self._test = test
         self._y_pred = None
-        self._fitted: bool = False
         self._predicted: bool = False
 
     def confusion_matrix(self, save: bool = False, file_name: str = "confusion_matrix.png"):
