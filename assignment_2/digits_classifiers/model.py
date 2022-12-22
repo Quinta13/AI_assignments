@@ -333,12 +333,21 @@ class ClassifierTuning:
     @property
     def best_params(self) -> Dict:
         """
-        Return the best classifier if accuracy was evaluated for each candidate
-            otherwise it raises an exception
+        Return the best classifier, raise an exception if validation was not evaluated
         :return: best parameters evaluated by the grid-search
         """
         if self._evaluated:
             return self._grid_search.best_params_
+        raise Exception("Best model tuning was not evaluated yet")
+
+    @property
+    def best_score(self) -> float:
+        """
+        Return the best accuracy score, raise an exception if validation was not evaluated
+        :return: best score
+        """
+        if self._evaluated:
+            return self._grid_search.best_score_
         raise Exception("Best model tuning was not evaluated yet")
 
     def evaluate(self):

@@ -5,20 +5,18 @@ This file... TODO
 from __future__ import annotations
 
 from abc import ABC
-from statistics import mode, mean, variance
+from statistics import mode
 from typing import List, Callable, Dict, Any, Tuple
 
 import numpy as np
 import pandas as pd
-from scipy.stats import beta
+from loguru import logger
+from scipy.stats import beta as beta_distribution
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
-from loguru import logger
-from scipy.spatial import distance
 
 from assignment_2.digits_classifiers.model import Classifier, Dataset
-from assignment_2.digits_classifiers.utils import MinElementCollection
 
 """ SIMPLE VECTOR MACHINE """
 
@@ -149,120 +147,72 @@ class RandomForest(Classifier, ABC):
 """ K - NEAREST NEIGHBOR """
 
 
-class Neighbor:
-    """
-    This class represent a neighbor of an instance,
-        it describes its label and the distance between the two
-    """
-
-    def __init__(self, label: int, distance: float):
-        """
-
-        :param label: label of the neighbor
-        :param distance: distance between instance and neighbor
-        """
-        self.label: int = label
-        self.distance: float = distance
-
-    def __str__(self) -> str:
-        """
-        :return: string representation of the object
-        """
-        return f"[Label: {self.label} - dist: {self.distance}]"
-
-    def __repr__(self) -> str:
-        """
-        :return: string representation of the object
-        """
-        return str(self)
-
-    def __gt__(self, other: Neighbor) -> bool:
-        return self.distance > other.distance
-
-    def __lt__(self, other: Neighbor) -> bool:
-        return not self.__gt__(other=other)
-
-
-class Neighbourhood:
-    """
-    This class represent the neighborhood of an instance
-    """
-
-    def __init__(self, neighbourhood: List[Neighbor]):
-        """
-
-        :param neighbourhood: list of neighborhood
-        """
-        self._neighbourhood: List[Neighbor] = neighbourhood
-
-    def __str__(self) -> str:
-        """
-        :return: string representation of the object
-        """
-        return str(self._neighbourhood)
-
-    def __repr__(self) -> str:
-        """
-        :return: string representation of the object
-        """
-        return str(self)
-
-    @property
-    def neighbourhood(self) -> List[Neighbor]:
-        """
-        :return: list of neighborhoods
-        """
-        return self._neighbourhood
-
-    @property
-    def mode_neighbourhood(self) -> int:
-        """
-        :return: mode of the label of the neighbors
-        """
-        return mode([n.label for n in self._neighbourhood])
-
-
 class KNNEstimator(BaseEstimator):
 
-    def __init__(self, k: int = 1, f_distance: Callable = distance.euclidean):
+    def __init__(self, k: int = 1):
         """
 
-        :param k: number of neighbor to consider
-        :param f_distance: function computing distance between two point in a vector space
+        :param k: number of neighbor
         """
-        # self.train: Dataset | None = None
+
+        # Training set is stored as a matrix as an array,
+        #   instead of using the Dataset class
+        #   to enforce performances
+        self.X_train: np.ndarray | None = None
+        self.y_train: np.ndarray | None = None
         self.k: int = k
-        self.f_distance: Callable = f_distance
 
-    def fit(self, X: pd.DataFrame, y: pd):
-        self.train = Dataset(x=X, y=y)
+    def fit(self, X: pd.DataFrame, y: np.ndarray):
+        """
+        Save the Training set
+        :param X: feature space
+        :param y: labels
+        """
+        self.X_train = np.array(X)
+        self.y_train = y
+
+    def _predict_one(self, x: np.ndarray) -> int:
+        """
+        Evaluate prediction for a single test instance
+        :param x: test instance in the feature space
+        :return: predicted label
+        """
+
+        train_len = self.X_train.shape[0]  # elements in the Training set
+
+        # evaluating distances
+        distances = np.array([
+            np.linalg.norm(x - self.X_train[[i], :])
+            for i in range(train_len)
+        ])
+
+        # index of the k smaller one
+        idx = distances.argsort()[0:self.k]
+
+        # labels of the k-nearest neighbor
+        labels = self.y_train[idx]
+
+        # majority vote
+        return mode(labels)
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         """
         Evaluate predictions over the test set
+        :param X: feature space of Test set
         :return: prediction
         """
 
-        predictions = []  # list of y_pred
+        X = np.array(X)  # cast to array to enforce performance
+        predictions = np.array([])  # collection of y_pred
 
-        log_info = 10  # logging step
+        test_len = X.shape[0]  # elements in the Training set
 
-        for idx, test in enumerate(X.iterrows()):  # predict foreach instance in test
-            _, test = test
-            int(idx)
-            if idx % log_info == 0:
-                logger.info(f" > {idx * 100 / len(X):.3f}%")
-            test = test.values  # test row as an array
-            neighs = MinElementCollection(k=self.k)  # collection of neighbors
-            for row, label in zip(self.train.X.iterrows(), self.train.y):  # iterate over train set
-                _, train = row
-                train = train.values  # train row as an array
-                dist = self.f_distance(test, train)
-                neighs.push(Neighbor(distance=dist, label=label))
-            neighborhood = Neighbourhood(neighbourhood=neighs.elements)
-            predictions.append(neighborhood.mode_neighbourhood)
+        for i in range(test_len):
+            row = X[[i], :]  # instance of the Test set
+            pred = self._predict_one(x=row)  # prediction for the instance
+            predictions = np.append(predictions, pred)
 
-        return np.array(predictions)
+        return predictions
 
 
 class KNN(Classifier, ABC):
@@ -270,7 +220,6 @@ class KNN(Classifier, ABC):
     This class represent a K-nearest-neighborhood classifier
         it considers following parameters:
             - k, number of neighbors
-            - f_distance, distance function between two points
     """
 
     classifier_name = f"KNN"
@@ -281,7 +230,7 @@ class KNN(Classifier, ABC):
 
         :param train: train dataset
         :param test: test dataset
-        :param params: dictionary with possible keys 'k'; 'f_distance'
+        :param params: dictionary with possible keys 'k';
         """
 
         # super class
@@ -292,27 +241,21 @@ class KNN(Classifier, ABC):
             params = {}
 
         self.k: int = params["k"] if "k" in params.keys() else 1
-        self.f_distance: Callable = params["f_distance"] if "f_distance" in params.keys() else distance.euclidean
 
         # estimator
-        self._estimator: BaseEstimator = KNNEstimator(
-            k=self.k, f_distance=self.f_distance
-        )
+        self._estimator: BaseEstimator = KNNEstimator(k=self.k)
 
     def __str__(self):
         """
         Return string representation of the object
         """
-        return super(KNN, self).__str__() + f" [k: {self.k}; distance: {self.f_distance}]"
+        return super(KNN, self).__str__() + f" [k: {self.k}]"
 
     def params(self) -> Dict[str, Any]:
         """
         :return: hyper-parameters
         """
-        return {
-            "k": self.k,
-            "f_distance": self.f_distance
-        }
+        return {"k": self.k}
 
     @staticmethod
     def default_estimator() -> BaseEstimator:
@@ -322,101 +265,7 @@ class KNN(Classifier, ABC):
         return KNNEstimator()
 
 
-""" BAYES """
-
-
-class PixelInfo:
-
-    """ This class represent the information of a pixel of a certain class
-        with specific relation to the beta-distribution"""
-
-    def __init__(self, mean_: float, var: float):
-        """
-
-        :param mean_: mean of the distribution
-        :param var: variance of the distribution
-        """
-        self.mean = mean_
-        self.var = var
-
-    @property
-    def k(self) -> float:
-        """
-        :return: K defined as ( E[X] (1 - E[X]) / Var(X) ) - 1
-        """
-        return self.mean * (1 - self.mean) / self.var - 1
-
-    @property
-    def k_defined(self) -> bool:
-        """
-        :return: is K defined for this pixel
-            if not i probably derives from invalid mathematical definitions, s.a. division by zero
-        """
-        return not np.isnan(self.k)
-
-    @property
-    def alpha(self) -> float:
-        """
-        :return: alpha parameter for beta distribution defined as K E[X]
-        """
-        return self.k * self.mean
-
-    @property
-    def beta(self) -> float:
-        """
-        :return: beta parameter for beta-distribution defined as K  (1 - E[X])
-        """
-        return self.k * (1 - self.mean)
-
-    @property
-    def beta_distribution_fun(self) -> Callable[[float], float]:
-        """
-        :return: function to evaluate the beta-distribution based on class-properties alpha and beta
-            if k is not defined for the class, the function in output produces the constant value 1
-        """
-        if self.k_defined and self.alpha > 0 and self.beta > 0:
-            e = 0.1
-            return lambda x: beta.cdf(x=x+e, a=self.alpha, b=self.beta) - beta.cdf(x=x-e, a=self.alpha, b=self.beta)
-        return lambda x: 1.
-
-    def beta_distribution(self, x: float) -> float:
-        """
-        :param x: point of evaluation
-        :return: probability mass function evaluation at point x
-        """
-        return self.beta_distribution_fun(x)
-
-    def __str__(self) -> str:
-        """
-        :return: string representation of the object
-        """
-        return f"Pixel[mean: {self.mean}; var: {self.var}" +\
-            (f" k: {self.k}, alpha: {self.alpha}, beta: {self.beta}" if self.k_defined else f"") +\
-            f"]"
-
-    def __repr__(self) -> str:
-        """
-        :return: string representation of the object
-        """
-        return str(self)
-
-    @staticmethod
-    def get_pixel_info(X: pd.DataFrame) -> Dict[str, PixelInfo]:
-        """
-        :param X: dataset representing the same label
-        :return: mapping between pixel (column) and its information
-        """
-
-        # mapping between column and its values
-        col_values: Dict[str, np.ndarray] = {
-            pixel: X.loc[: , pixel].values for pixel in X.columns
-        }
-        # mapping between column and its info
-        pixels: Dict[str, PixelInfo] = {
-            pixel: PixelInfo(mean_=mean(values), var=variance(values))
-            for pixel, values in col_values.items()
-        }
-        return pixels
+""" NAIVE BAYES """
 
 
 class BayesEstimator(BaseEstimator):
@@ -425,66 +274,155 @@ class BayesEstimator(BaseEstimator):
         """
         BayesEstimator have no actually hyper-parameters
         """
-        # pixels maps a label to a mapping between a column and its relative information
-        #   label : (column : pixel_info)
-        self.pixels: Dict[str, Dict[str, PixelInfo]] | None = None
+
+        # list of all possible labels
+        self.labels: List[int] = []
+
+        # total number of features
+        self.n_cols: int = 0
+
+        # pixels maps a label to a mapping between a column and its relative beta distribution
+        #   label : (index : beta)
+        self._label_col_beta: Dict[int, Dict[int, Callable[[float], float]]] | None = None
 
         # frequency of labels
-        self._labels: Dict[str, float] | None = None
+        self._labels_frequency: Dict[int, float] | None = None
+
+    @staticmethod
+    def _get_beta(col: np.ndarray) -> Callable[[float], float]:
+        """
+        Produces the beta distribution for a given column
+            depending on its mean and variance
+        :param col: different values of the same feature
+        :return: beta distribution for the given column
+        """
+
+        mean = col.mean()              # E[X]
+        var = col.var()                # Var[X]
+        k = mean * (1-mean) / var - 1  # K = ( E[X] * (1 - E[X]) / Var[X] ) - 1
+        alpha = k * mean               # alpha = K E[X] + 1
+        beta = k * (1 - mean)          # beta  = K (1 - E[X]) + 1
+
+        # check if there exist a valid beta distribution
+        if not np.isnan(k) and alpha > 0 and beta > 0:
+            epsilon = 0.05
+            return lambda x: beta_distribution.cdf(a=alpha, b=beta, x=x+epsilon) - \
+                             beta_distribution.cdf(a=alpha, b=beta, x=x-epsilon)
+
+        # constant value that doesn't affect the multiplication
+        return lambda x: 1
+
+    def _get_betas(self, mat: np.ndarray) -> Dict[int, Callable[[float], float]]:
+        """
+        Return all betas distributions for a given matrix,
+            representing the feature space for all element of same label
+        :param mat: feature space of a certain class
+        :return: mapping between a feature the associated beta function
+        """
+
+        # dictionary - feature index : beta function
+        return {
+            i: self._get_beta(mat[:, i])
+            for i in range(self.n_cols)
+        }
 
     def fit(self, X: pd.DataFrame, y: np.ndarray):
         """
+        Save the beta distribution for each class and for each relative pixel
+        Save the relative frequency of each class
         :param X: feature space
         :param y: labels
-        Save pixel information for each class and for each relative pixel
         """
 
-        labeled_dataset: Dict[str, pd.DataFrame] = {
-            l: X.loc[y == l] for l in list(set(y))
+        self.labels = [int(l) for l in list(set(y))]
+        self.n_cols = len(X.columns)
+
+        # split the dataset associating to each label a matrix
+        labeled_dataset: Dict[int, np.ndarray] = {
+            l: np.array(X.loc[y == l]) for l in self.labels
         }
 
-        self.pixels = {
-            label: PixelInfo.get_pixel_info(X=X)
-            for label, X in labeled_dataset.items()
+        # for each label compute the beta distribution for every columns
+        self._label_col_beta = {
+            l: self._get_betas(mat)
+            for l, mat in labeled_dataset.items()
         }
 
-        self._labels = {
-            k[0]: v for k, v in pd.DataFrame(y).value_counts().to_dict().items()
+        self._labels_frequency = {
+            k[0]: v / len(X) for k, v in pd.DataFrame(y).value_counts().to_dict().items()
         }
+
+    def _label_product(self, l: int, x: np.ndarray) -> float:
+        """
+        Compute the multiplication of the betas distributions for a certain label
+            using values of a certain test instance
+        :param l: label
+        :param x: point in the Test set
+        :return: product of the beta distribution for each pixel evaluated in a certain point
+        """
+
+        # betas for given class
+        betas = self._label_col_beta[l]
+
+        # pairwise product between
+
+        single_products: List[float] = [
+            beta(x_) for beta, x_ in zip(betas.values(), x)
+        ]
+
+        prod = np.prod(np.array(single_products))
+        return float(prod)
+
+    def _labels_products(self, x: np.array) -> List[Tuple[float, int]]:
+        """
+        Compute the multiplication of beta distributions for each labels
+            using value of a certain test instance
+        :param x: point in the Test set
+        :return: product of distribution and associated label
+        """
+        # List of tuple (product, label)
+        # the order allows for an easy maximum search
+        return [
+            (
+                # the product of distribution is multiplied by the probability of the class (its frequency)
+                self._labels_frequency[l] * self._label_product(l=l, x=x),
+                l
+            )
+            for l in self.labels
+        ]
+
+    def _predict_one(self, x: np.array) -> int:
+        """
+        It takes the class with the higher probability product
+        :return: predicted label
+        """
+        products = self._labels_products(x=x)
+        higher = max(products)
+        _, pred = higher
+        return pred
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
-
-        prediction = []
-
-        log_info = 10
-
-        for idx, test in enumerate(X.iterrows()):  # predict foreach instance in test
-            if idx % log_info == 0:
-                logger.info(f" > {idx * 100 / len(X):.3f}%")
-            _, test = test
-            prediction.append(
-                self._single_predict(values=test.values)
-            )
-        return np.array(prediction)
-
-    def _single_predict(self, values: np.ndarray) -> int:
         """
-        Compute a prediction for a test-instance
-        :param values: values of instance to predict (point in the feature space)
-        :return: predicted class
+        It predict the label for all instances in the test set
+        :param X: Test set
+        :return: predicted labels
         """
 
-        # tuple class, log-likelihood
-        log_likelihood: List[Tuple[float, int]] = [
-            (
-                self._labels[label] * np.product([
-                    pxl.beta_distribution(val) for val, pxl in zip(values, pixels_info.values())
-                ]),
-                int(label)
-            ) for label, pixels_info in self.pixels.items()
-        ]
-        _, label = max(log_likelihood)
-        return label
+        X = np.array(X)  # cast to array to enforce performance
+        predictions = np.array([])  # collection of y_pred
+
+        log_info = 30
+
+        test_len = X.shape[0]  # elements in the Training set
+
+        for i in range(test_len):
+            if i % log_info == 0:
+                print(f" > {i*100/test_len:3f}")
+            row = X[i, :]  # instance of the Test set
+            pred = self._predict_one(x=row)  # prediction for the instance
+            predictions = np.append(predictions, pred)
+
+        return predictions
 
 
 class NaiveBayes(Classifier, ABC):

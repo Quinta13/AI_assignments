@@ -14,50 +14,6 @@ from matplotlib import pyplot as plt
 from assignment_2.digits_classifiers.settings import IMAGES, get_root_dir
 
 
-class MinElementCollection:
-    """ This class represent a collection of at least k elements;
-        it keep only the minimum k elements inserted """
-
-    def __init__(self, k: int):
-        """
-
-        :param k: max size of the collection
-        :param f: guide criteria (min or max) TODO extend to generic lamda
-        """
-        self._k: int = k
-        self._elements: List[Any] = []
-
-    def __iter__(self):
-        return iter(self._elements)
-
-    def __str__(self) -> str:
-        """
-        :return: string representation for the object
-        """
-        return str(self._elements)
-
-    def __repr__(self) -> str:
-        """
-        :return: string representation for the object
-        """
-        return str(self)
-
-    def push(self, element: Any):
-        """
-        Add en element to the collection according polices
-        """
-        if len(self._elements) < self._k:
-            self._elements.append(element)
-        else:
-            max_ = max(self._elements)
-            if element < max_:
-                self._elements[self._elements.index(max_)] = element
-
-    @property
-    def elements(self) -> List:
-        return self._elements
-
-
 def create_dir(path: str, log: bool = True):
     """
     Create directory if doesn't exists
