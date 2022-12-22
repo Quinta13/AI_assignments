@@ -230,7 +230,7 @@ class KNNEstimator(BaseEstimator):
         :param k: number of neighbor to consider
         :param f_distance: function computing distance between two point in a vector space
         """
-        self.train: Dataset | None = None
+        # self.train: Dataset | None = None
         self.k: int = k
         self.f_distance: Callable = f_distance
 
