@@ -207,7 +207,13 @@ class KNNEstimator(BaseEstimator):
 
         test_len = X.shape[0]  # elements in the Training set
 
+        log_info = 200
+
         for i in range(test_len):
+
+            if i % log_info == 0:
+                print(f" > {i*100/test_len:3f}")
+
             row = X[[i], :]  # instance of the Test set
             pred = self._predict_one(x=row)  # prediction for the instance
             predictions = np.append(predictions, pred)
