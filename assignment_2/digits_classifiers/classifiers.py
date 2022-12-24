@@ -207,7 +207,7 @@ class KNNEstimator(BaseEstimator):
 
         test_len = X.shape[0]  # elements in the Training set
 
-        log_info = 200
+        log_info = 20
 
         for i in range(test_len):
 
