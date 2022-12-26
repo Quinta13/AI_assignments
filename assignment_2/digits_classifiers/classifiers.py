@@ -207,13 +207,7 @@ class KNNEstimator(BaseEstimator):
 
         test_len = X.shape[0]  # elements in the Training set
 
-        log_info = 20
-
         for i in range(test_len):
-
-            if i % log_info == 0:
-                print(f" > {i*100/test_len:3f}")
-
             row = X[[i], :]  # instance of the Test set
             pred = self._predict_one(x=row)  # prediction for the instance
             predictions = np.append(predictions, pred)
@@ -274,8 +268,7 @@ class KNN(Classifier, ABC):
 """ NAIVE BAYES """
 
 
-class BayesEstimator(BaseEstimator):
-
+class NaiveBayesEstimator(BaseEstimator):
     def __init__(self):
         """
         BayesEstimator have no actually hyper-parameters
@@ -284,100 +277,80 @@ class BayesEstimator(BaseEstimator):
         # list of all possible labels
         self.labels: List[int] = []
 
-        # total number of features
-        self.n_cols: int = 0
-
-        # pixels maps a label to a mapping between a column and its relative beta distribution
-        #   label : (index : beta)
-        self._label_col_beta: Dict[int, Dict[int, Callable[[float], float]]] | None = None
+        # dictionary which associate each label
+        #  to a collection of alphas and betas, once for each
+        self._label_alpha_beta: Dict[int, Tuple[np.array, np.array]] | None = None
 
         # frequency of labels
         self._labels_frequency: Dict[int, float] | None = None
 
+
     @staticmethod
-    def _get_beta(col: np.ndarray) -> Callable[[float], float]:
+    def _get_alpha_beta(df: pd.DataFrame) -> Tuple[np.array, np.array]:
         """
-        Produces the beta distribution for a given column
-            depending on its mean and variance
-        :param col: different values of the same feature
-        :return: beta distribution for the given column
-        """
-
-        mean = col.mean()              # E[X]
-        var = col.var()                # Var[X]
-        k = mean * (1-mean) / var - 1  # K = ( E[X] * (1 - E[X]) / Var[X] ) - 1
-        alpha = k * mean               # alpha = K E[X] + 1
-        beta = k * (1 - mean)          # beta  = K (1 - E[X]) + 1
-
-        # check if there exist a valid beta distribution
-        if not np.isnan(k) and alpha > 0 and beta > 0:
-            epsilon = 0.05
-            return lambda x: beta_distribution.cdf(a=alpha, b=beta, x=x+epsilon) - \
-                             beta_distribution.cdf(a=alpha, b=beta, x=x-epsilon)
-
-        # constant value that doesn't affect the multiplication
-        return lambda x: 1
-
-    def _get_betas(self, mat: np.ndarray) -> Dict[int, Callable[[float], float]]:
-        """
-        Return all betas distributions for a given matrix,
-            representing the feature space for all element of same label
-        :param mat: feature space of a certain class
-        :return: mapping between a feature the associated beta function
+        Given a data frame which represent a single class compute
+            alphas and betas for the beta-distribution
+        :param df: dataframe of a single class
+        :return: alphas and betas for the beta distribution
         """
 
-        # dictionary - feature index : beta function
-        return {
-            i: self._get_beta(mat[:, i])
-            for i in range(self.n_cols)
-        }
+        # exploit of element-wise numpy operation
+
+        mean = np.mean(df, axis=0)  # E[X]
+        var = np.var(df, axis=0)  # Var[X]
+        k = mean * (1 - mean) / var - 1  # K = ( E[X] * (1 - E[X]) / Var[X] ) - 1
+        alpha = k * mean  # alpha = K E[X] + 1
+        beta = k * (1 - mean)  # beta  = K (1 - E[X]) + 1
+
+        return alpha, beta
 
     def fit(self, X: pd.DataFrame, y: np.ndarray):
         """
-        Save the beta distribution for each class and for each relative pixel
+        Save the alphas and betas for each class (as for each pixel)
         Save the relative frequency of each class
         :param X: feature space
         :param y: labels
         """
 
+        # labels
         self.labels = [int(l) for l in list(set(y))]
-        self.n_cols = len(X.columns)
 
-        # split the dataset associating to each label a matrix
-        labeled_dataset: Dict[int, np.ndarray] = {
-            l: np.array(X.loc[y == l]) for l in self.labels
+        # split the dataset associating to each label its rows in the dataframe
+        labeled_dataset: Dict[int, pd.DataFrame] = {
+            label: X.loc[y == label] for label in self.labels
         }
 
-        # for each label compute the beta distribution for every columns
-        self._label_col_beta = {
-            l: self._get_betas(mat)
-            for l, mat in labeled_dataset.items()
-        }
-
+        # computing relative frequency of each label
         self._labels_frequency = {
             k[0]: v / len(X) for k, v in pd.DataFrame(y).value_counts().to_dict().items()
         }
+        # computing alpha and beta for each label
+        self._label_alpha_beta = {
+            label: self._get_alpha_beta(df=df)
+            for label, df in labeled_dataset.items()
+        }
 
-    def _label_product(self, l: int, x: np.ndarray) -> float:
+    def _label_product(self, label: int, x: np.ndarray) -> float:
         """
         Compute the multiplication of the betas distributions for a certain label
             using values of a certain test instance
-        :param l: label
+        :param label: label
         :param x: point in the Test set
         :return: product of the beta distribution for each pixel evaluated in a certain point
         """
 
-        # betas for given class
-        betas = self._label_col_beta[l]
+        alpha, beta = self._label_alpha_beta[label]
+        epsilon = 0.05  # length of neighborhood
 
-        # pairwise product between
+        # cumulative density function in the neighbor
+        probs = beta_distribution.cdf(a=alpha, b=beta, x=x + epsilon) - \
+                beta_distribution.cdf(a=alpha, b=beta, x=x - epsilon)
 
-        single_products: List[float] = [
-            beta(x_) for beta, x_ in zip(betas.values(), x)
-        ]
+        # where the probability dist doesn't exist (variance less or equal to zero)
+        #   we assign one in order to not affect the multiplication
+        np.nan_to_num(probs, nan=1., copy=False)
 
-        prod = np.prod(np.array(single_products))
-        return float(prod)
+        return np.product(probs)
 
     def _labels_products(self, x: np.array) -> List[Tuple[float, int]]:
         """
@@ -391,21 +364,23 @@ class BayesEstimator(BaseEstimator):
         return [
             (
                 # the product of distribution is multiplied by the probability of the class (its frequency)
-                self._labels_frequency[l] * self._label_product(l=l, x=x),
+                self._labels_frequency[l] * self._label_product(label=l, x=x),
                 l
             )
             for l in self.labels
         ]
 
-    def _predict_one(self, x: np.array) -> int:
+    def _predict_one(self, x: np.array) -> int | None:
         """
         It takes the class with the higher probability product
-        :return: predicted label
+        :return: predicted label, None if all class have probability zero
         """
         products = self._labels_products(x=x)
         higher = max(products)
-        _, pred = higher
-        return pred
+        prob, pred = higher
+        if prob > 0:
+            return pred
+        return None  # all classes have 0 probability
 
     def predict(self, X: pd.DataFrame) -> np.ndarray:
         """
@@ -417,13 +392,9 @@ class BayesEstimator(BaseEstimator):
         X = np.array(X)  # cast to array to enforce performance
         predictions = np.array([])  # collection of y_pred
 
-        log_info = 30
-
         test_len = X.shape[0]  # elements in the Training set
 
         for i in range(test_len):
-            if i % log_info == 0:
-                print(f" > {i*100/test_len:3f}")
             row = X[i, :]  # instance of the Test set
             pred = self._predict_one(x=row)  # prediction for the instance
             predictions = np.append(predictions, pred)
@@ -449,7 +420,7 @@ class NaiveBayes(Classifier, ABC):
         super().__init__(train=train, test=test, params={})
 
         # estimator
-        self._estimator: BaseEstimator = BayesEstimator()
+        self._estimator: BaseEstimator = NaiveBayesEstimator()
 
     def __str__(self):
         """
@@ -469,4 +440,4 @@ class NaiveBayes(Classifier, ABC):
         """
         :return: classifier default estimator
         """
-        return BayesEstimator()
+        return NaiveBayesEstimator()

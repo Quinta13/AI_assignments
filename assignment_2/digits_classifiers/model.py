@@ -148,6 +148,16 @@ class Classifier(ABC):
         raise Exception("Classifier not predicted yet")
 
     @property
+    def _get_without_nan(self) -> Tuple[np.ndarray, np.ndarray]:
+        """
+        It ignores nan results in predictions
+        """
+        with_nan = list(np.where(pd.isna(self.predicted))[0])
+        preds = (np.delete(self.predicted, with_nan)).tolist()
+        trues = (np.delete(self._test.y, with_nan)).tolist()
+        return np.array(preds), np.array(trues)
+
+    @property
     def accuracy(self) -> float:
         """
         If prediction was evaluated return the accuracy of prediction,
@@ -155,7 +165,8 @@ class Classifier(ABC):
         :return: accuracy score of prediction
         """
         if self._predicted:
-            return accuracy_score(self._test.y, self._y_pred)
+            preds, trues = self._get_without_nan
+            return accuracy_score(preds, trues)
         raise Exception("Classifier not predicted yet")
 
     def change_dataset(self, train: Dataset, test: Dataset):
@@ -186,7 +197,8 @@ class Classifier(ABC):
         :param file_name: file name for the image if saved
         """
         if self._predicted:
-            cm = confusion_matrix(y_true=self._test.y, y_pred=self._y_pred)
+            preds, trues = self._get_without_nan
+            cm = confusion_matrix(y_true=trues, y_pred=preds)
             disp = ConfusionMatrixDisplay(
                 confusion_matrix=cm,
                 display_labels=[str(n) for n in range(10)]
