@@ -6,11 +6,10 @@ from __future__ import annotations
 
 from abc import ABC
 from statistics import mode
-from typing import List, Callable, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple
 
 import numpy as np
 import pandas as pd
-from loguru import logger
 from scipy.stats import beta as beta_distribution
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestClassifier
@@ -278,7 +277,7 @@ class NaiveBayesEstimator(BaseEstimator):
         self.labels: List[int] = []
 
         # dictionary which associate each label
-        #  to a collection of alphas and betas, once for each
+        #  to a collection of alphas and betas, once for each pixel
         self._label_alpha_beta: Dict[int, Tuple[np.array, np.array]] | None = None
 
         # frequency of labels
@@ -296,17 +295,17 @@ class NaiveBayesEstimator(BaseEstimator):
 
         # exploit of element-wise numpy operation
 
-        mean = np.mean(df, axis=0)  # E[X]
-        var = np.var(df, axis=0)  # Var[X]
+        mean = np.mean(df, axis=0)       # E[X]
+        var = np.var(df, axis=0)         # Var[X]
         k = mean * (1 - mean) / var - 1  # K = ( E[X] * (1 - E[X]) / Var[X] ) - 1
-        alpha = k * mean  # alpha = K E[X] + 1
-        beta = k * (1 - mean)  # beta  = K (1 - E[X]) + 1
+        alpha = k * mean                 # alpha = K E[X] + 1
+        beta = k * (1 - mean)            # beta  = K (1 - E[X]) + 1
 
         return alpha, beta
 
     def fit(self, X: pd.DataFrame, y: np.ndarray):
         """
-        Save the alphas and betas for each class (as for each pixel)
+        Save the alphas and betas for each class (and for each pixel)
         Save the relative frequency of each class
         :param X: feature space
         :param y: labels
@@ -324,6 +323,7 @@ class NaiveBayesEstimator(BaseEstimator):
         self._labels_frequency = {
             k[0]: v / len(X) for k, v in pd.DataFrame(y).value_counts().to_dict().items()
         }
+
         # computing alpha and beta for each label
         self._label_alpha_beta = {
             label: self._get_alpha_beta(df=df)
@@ -346,7 +346,7 @@ class NaiveBayesEstimator(BaseEstimator):
         probs = beta_distribution.cdf(a=alpha, b=beta, x=x + epsilon) - \
                 beta_distribution.cdf(a=alpha, b=beta, x=x - epsilon)
 
-        # where the probability dist doesn't exist (variance less or equal to zero)
+        # where the probability distributione doesn't exist (variance less or equal to zero)
         #   we assign one in order to not affect the multiplication
         np.nan_to_num(probs, nan=1., copy=False)
 
