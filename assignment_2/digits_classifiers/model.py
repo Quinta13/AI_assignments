@@ -19,8 +19,8 @@ from sklearn.base import BaseEstimator
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score
 from sklearn.model_selection import GridSearchCV
 
-from assignment_2.digits_classifiers.settings import IMAGES, get_root_dir
-from assignment_2.digits_classifiers.utils import digits_histogram
+from assignment_2 import IMAGES, get_root_dir
+from assignment_2 import digits_histogram
 
 
 class Dataset:

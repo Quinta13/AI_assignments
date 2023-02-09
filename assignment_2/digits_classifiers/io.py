@@ -1,5 +1,4 @@
 import os
-from typing import Tuple
 
 import numpy as np
 import pandas as pd
@@ -9,9 +8,9 @@ from PIL import ImageOps, Image
 from loguru import logger
 from sklearn.datasets import fetch_openml
 
-from assignment_2.digits_classifiers.model import Dataset
-from assignment_2.digits_classifiers.settings import DATASETS, TRAINING_DATA, TRAINING_LABELS, get_root_dir, IN_IMAGES
-from assignment_2.digits_classifiers.utils import create_dir
+from assignment_2 import Dataset
+from assignment_2 import DATASETS, TRAINING_DATA, TRAINING_LABELS, get_root_dir, IN_IMAGES
+from assignment_2 import create_dir
 
 DATASET_DIR = path.join(get_root_dir(), DATASETS)
 

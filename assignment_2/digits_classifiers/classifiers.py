@@ -15,7 +15,7 @@ from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 
-from assignment_2.digits_classifiers.model import Classifier, Dataset
+from assignment_2 import Classifier, Dataset
 
 """ SIMPLE VECTOR MACHINE """
 
