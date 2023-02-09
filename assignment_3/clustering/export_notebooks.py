@@ -1,12 +1,13 @@
 """
 This script exports all notebooks contained in a certain directory to a .pdf
 """
+
 import os
 import subprocess
 
 from loguru import logger
 
-from clustering.settings import get_root_dir
+from assignment_3.clustering.settings import get_root_dir
 
 EXT = '.ipynb'
 COMMAND = 'jupyter nbconvert --to webpdf'

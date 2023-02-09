@@ -1,5 +1,5 @@
 """
-This file ...
+This file ... TODO
 """
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import pandas as pd
 from numpy import ndarray
 from pandas import DataFrame
 
-from clustering.utils import digits_histogram
+from assignment_3.clustering.utils import digits_histogram
 
 
 class Dataset:

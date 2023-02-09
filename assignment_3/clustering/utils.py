@@ -1,5 +1,5 @@
 """
-This script ...
+This file ... TODO
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from typing import List, Dict
 from loguru import logger
 from matplotlib import pyplot as plt
 
-from clustering.settings import get_root_dir, IMAGES
+from assignment_3.clustering.settings import get_root_dir, IMAGES
 
 
 def create_dir(path: str, log: bool = True):

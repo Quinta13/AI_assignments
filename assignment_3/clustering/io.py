@@ -1,12 +1,16 @@
+"""
+This file ... TODO
+"""
+
 import pandas as pd
 import os.path as path
 
 from loguru import logger
 from sklearn.datasets import fetch_openml
 
-from clustering.model import Dataset
-from clustering.settings import get_root_dir, DATASETS, TRAINING_DATA, TRAINING_LABELS
-from clustering.utils import create_dir
+from assignment_3.clustering.model import Dataset
+from assignment_3.clustering.settings import get_root_dir, DATASETS, TRAINING_DATA, TRAINING_LABELS
+from assignment_3.clustering.utils import create_dir
 
 DATASET_DIR = path.join(get_root_dir(), DATASETS)
 
