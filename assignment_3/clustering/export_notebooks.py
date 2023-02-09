@@ -6,7 +6,7 @@ import subprocess
 
 from loguru import logger
 
-from assignment_2 import get_root_dir
+from clustering.settings import get_root_dir
 
 EXT = '.ipynb'
 COMMAND = 'jupyter nbconvert --to webpdf'
@@ -28,5 +28,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-#%%

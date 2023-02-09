@@ -1,13 +1,16 @@
 """
 This file ...
 """
+from __future__ import annotations
 
 from typing import Iterator
 
+import numpy as np
+import pandas as pd
 from numpy import ndarray
 from pandas import DataFrame
 
-from utils import digits_histogram
+from clustering.utils import digits_histogram
 
 
 class Dataset:

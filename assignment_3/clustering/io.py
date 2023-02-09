@@ -1,16 +1,12 @@
-import os
-
-import numpy as np
 import pandas as pd
 import os.path as path
 
-from PIL import ImageOps, Image
 from loguru import logger
 from sklearn.datasets import fetch_openml
 
-from model import Dataset
-from settings import get_root_dir, DATASETS, TRAINING_DATA, TRAINING_LABELS
-from utils import create_dir
+from clustering.model import Dataset
+from clustering.settings import get_root_dir, DATASETS, TRAINING_DATA, TRAINING_LABELS
+from clustering.utils import create_dir
 
 DATASET_DIR = path.join(get_root_dir(), DATASETS)
 
