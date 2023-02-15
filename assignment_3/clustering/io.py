@@ -16,6 +16,7 @@ DATASET_DIR = path.join(get_root_dir(), DATASETS)
 
 data = path.join(DATASET_DIR, TRAINING_DATA)
 labels = path.join(DATASET_DIR, TRAINING_LABELS)
+labels = path.join(DATASET_DIR, TRAINING_LABELS)
 
 
 def download_dataset():
@@ -34,7 +35,7 @@ def download_dataset():
     y.to_csv(labels, index=False)
 
 
-def read_datasets() -> Dataset:
+def read_dataset() -> Dataset:
     """
     Read datasets
     """
