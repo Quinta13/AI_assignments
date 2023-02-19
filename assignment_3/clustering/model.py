@@ -4,19 +4,21 @@ This file ... TODO
 from __future__ import annotations
 
 from os import path
-from typing import Iterator, Dict
+from typing import Iterator, Dict, List
 
 import numpy as np
 import pandas as pd
 from loguru import logger
+from matplotlib import pyplot as plt
 from numpy import ndarray
 from pandas import DataFrame
 from sklearn.cluster import MeanShift
 from sklearn.decomposition import PCA
 from sklearn.metrics import rand_score
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
 
-from assignment_3.clustering.settings import DATASET_DIR
+from assignment_3.clustering.settings import DATASET_DIR, IMAGES_DIR
 from assignment_3.clustering.utils import digits_histogram, create_dir
 
 """ DATASET """
@@ -79,7 +81,7 @@ class Dataset:
             raise Exception(f"Number of components must be less than {actual_components},"
                             "the actual number of components")
         return Dataset(
-            x=PCA(n_components=n_components).fit_transform(self.X),
+            x=pd.DataFrame(PCA(n_components=n_components).fit_transform(self.X)),
             y=self.y
         )
 
@@ -122,50 +124,57 @@ class Dataset:
         self.X.to_csv(x_out, index=False)
         pd.DataFrame(self.y).to_csv(y_out, index=False)
 
+    def rescale(self) -> Dataset:
+        """
+        Rescales rows and columns in interval [0, 1]
+        """
+        self.X = pd.DataFrame(MinMaxScaler().fit_transform(self.X), columns=self.X.columns)
+        return self
+
 
 """ MEAN SHIFT """
 
 
 class MeanShiftClustering:
 
-    def __init__(self, data: Dataset, bw: float):
+    def __init__(self, data: Dataset, kernel: float):
         """
 
         :param data: dataset for evaluation
-        :param bw: bandwidth for mean-shift
+        :param kernel: bandwidth for mean-shift
         """
 
         _X, _y = data
         self._X: pd.DataFrame = _X
         self._y: np.ndarray = _y
 
-        self._bw: float = 0.
-        self.set_bw(bw)
+        self._kernel: float = 0.
+        self.set_kernel(kernel)
 
         self._trained: bool = False
         self._out: np.ndarray | None = None
 
-        self.mean_shift = MeanShift(bandwidth=self._bw)
+        self.mean_shift = MeanShift(bandwidth=self._kernel)
 
-    def set_bw(self, bw: float):
+    def set_kernel(self, kernel: float):
         """
         Change value of bandwidth for mean_shift,
             makes an integrity check on the value
-        :param bw: bandwidth for mean shift
+        :param kernel: bandwidth for mean shift
         """
 
-        if bw <= 0:
-            raise Exception(f"Given bandwidth {bw}, but is should be positive")
+        if kernel <= 0:
+            raise Exception(f"Given bandwidth {kernel}, but is should be positive")
 
-        if self._bw != bw:
+        if self._kernel != kernel:
             self._trained = False
-            self._bw = bw
+            self._kernel = kernel
 
     def fit(self):
         """
         Train the model
         """
-        self.mean_shift = MeanShift(bandwidth=self._bw).fit(self._X)
+        self.mean_shift = MeanShift(bandwidth=self._kernel).fit(self._X)
         self._out = self.mean_shift.labels_
         self._trained = True
 
@@ -209,9 +218,125 @@ class MeanShiftClustering:
         if not self._trained:
             raise Exception("Model not trained yet")
 
-    def __repr__(self) -> str:
+    def __str__(self) -> str:
         return f"[N-rows: {len(self._X)}; N-components: {self._X.shape[1]}" +\
             (f", Score: {self.score}, N-clusters: {self.n_clusters}" if self._trained else "") + "]"
+
+    def __repr__(self) -> str:
+        return str(self)
+
+
+class MeanShiftEvaluation:
+
+    COLORS = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
+
+    SCORE = 'score'
+    N_CLUSTERS = 'n_clusters'
+
+    def __init__(self, data: Dataset, n_components: List[int], kernels: List[float]):
+        """
+
+        :param data: dataset for evaluation
+        :param n_components: list of number of components to evaluate
+        :param kernels: list of kernel sizes
+        """
+        self.data: Dataset = data
+        self._n_components: List[int] = n_components
+        self._kernels: List[float] = kernels
+        if len(self._n_components) > len(self.COLORS):
+            raise Exception(f"Due to graphic representation at most {len(self.COLORS)} are considered, "
+                            f"{len(self._kernels)} were given.")
+        self._evaluated: bool = False
+        self._best_model: MeanShiftClustering | None = None
+        self._results: Dict[float, Dict[int, Dict[str, int]]] = dict()
+
+    def __str__(self) -> str:
+        return f"MeanShiftEvaluation [n_components: {self._n_components}, kernels: {self._kernels}]"
+
+    def __repr__(self) -> str:
+        return str(self)
+
+    def _check_evaluated(self):
+        if not self._evaluated:
+            raise f"Evaluation not completed yet"
+
+    def evaluate(self):
+        """
+        TODO
+        """
+
+        kernels = {}  # kernel size : dictionary keyed by number of components
+
+        for k in self._kernels:
+            logger.info(f"Processing kernel size: {k}")
+            components = {}  # number of components : results
+            for nc in self._n_components:
+                data_d = self.data.make_pca(n_components=nc).rescale()
+                logger.info(f"  > Processing number of component: {nc}")
+                mean_shift = MeanShiftClustering(data=data_d, kernel=k)
+                mean_shift.fit()
+                results = {
+                    self.SCORE: mean_shift.score,
+                    self.N_CLUSTERS: mean_shift.n_clusters
+                }
+                if self._best_model is None or mean_shift.score > self._best_model.score:
+                    self._best_model = mean_shift
+                components[nc] = results
+            kernels[k] = components
+
+        self._evaluated = True
+        self._results = kernels
+
+    @property
+    def results(self) -> Dict[float, Dict[int, Dict[str, int]]]:
+        self._check_evaluated()
+        return self._results
+
+    @property
+    def best_model(self) -> MeanShiftClustering:
+        return self._best_model
+
+    def _plot(self, title: str, res: str, y_label: str,
+              save: bool = False, file_name: str = 'graph.png'):
+        """
+        TODO
+        """
+
+        for kernel, dims in self.results.items():
+
+            c = self.COLORS[list(self.results.keys()).index(kernel)]  # get a different color for a specific kernel size
+            x = []  # number of components
+            y = []  # result
+
+            for nc, out in dims.items():
+                x.append(nc)
+                y.append(out[res])
+
+            # Plot the points connected by a line
+            plt.plot(x, y, '-o', label=f'{kernel}  ', color=c)
+
+        # Add a legend
+        plt.legend(bbox_to_anchor=(1, 1), loc='upper left', borderaxespad=0.)
+
+        # Set the x and y axis labels
+        plt.title(title)
+        plt.xlabel('Number of components')
+        plt.ylabel(y_label)
+
+        # Show the plot
+        if save:
+            path.join(IMAGES_DIR, file_name)
+            plt.savefig(file_name)
+
+        plt.show()
+
+    def plot_score(self, save=False, file_name='accuracy.png'):
+        self._plot(title="Random Index Score", res=self.SCORE,
+                   y_label='Score', save=save, file_name=file_name)
+
+    def plot_n_clusters(self, save=False, file_name='n_clusters.png'):
+        self._plot(title="Varying Cluster Number", res=self.N_CLUSTERS,
+                   y_label='NClusters', save=save, file_name=file_name)
 
 
 def split_dataset(data: Dataset, index=np.ndarray) -> Dict[Dataset, int]:
