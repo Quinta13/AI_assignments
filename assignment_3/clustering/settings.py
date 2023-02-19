@@ -19,5 +19,11 @@ def get_root_dir() -> str:
 DATASETS = "datasets"
 IMAGES = "images"
 
+DATASET_DIR = path.join(get_root_dir(), DATASETS)
+IMAGES_DIR = path.join(get_root_dir(), IMAGES)
+
 TRAINING_DATA = "pixels.csv"
 TRAINING_LABELS = "labels.csv"
+
+TRAINING_DATA_SMALL = "pixels_s.csv"
+TRAINING_LABELS_SMALL = "labels_s.csv"

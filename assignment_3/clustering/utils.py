@@ -12,7 +12,9 @@ from typing import List, Dict
 from loguru import logger
 from matplotlib import pyplot as plt
 
-from assignment_3.clustering.settings import get_root_dir, IMAGES
+from assignment_3.clustering.settings import IMAGES_DIR
+
+SIZE = 28
 
 
 def create_dir(path: str, log: bool = True):
@@ -63,23 +65,37 @@ def plot_digit(pixels: np.array, save: bool = False,
     """
     Plot a figure given a square matrix array,
         each cell represent a grey-scale pixel with intensity 0-1
-    :param pixels: square matrix of pixels
+    :param pixels: intensity of pixels
     :param save: if true, the image is stored in the directory
     :param file_name: name of file if stored (including extension)
     """
+
     fig, ax = plt.subplots(1)
+    pixels = chunks(lst=pixels, n=SIZE)
     ax.imshow(pixels, cmap=plt.cm.gray_r, interpolation="nearest")
     ax.set_yticklabels([])
     ax.set_xticklabels([])
 
     if save:
-        image_dir = os.path.join(get_root_dir(), IMAGES)
-        file = os.path.join(image_dir, file_name)
+        file = os.path.join(IMAGES_DIR, file_name)
         logger.info(f"Saving {file}")
-        create_dir(image_dir, log=False)
+        create_dir(IMAGES_DIR, log=False)
         return plt.savefig(file)  # return allows inline-plot in notebooks
     else:
         plt.show()
+
+
+def plot_mean_digit(X: pd.DataFrame, save: bool = False,
+                    file_name: str = "image.png"):
+    """
+    Plots the average figure of a certain number of images
+    :param X: set of images
+    :param save: if true, the image is stored in the directory
+    :param file_name: name of file if stored (including extension)
+    """
+
+    pixels = np.mean(X)
+    plot_digit(pixels=pixels, save=save, file_name=file_name)
 
 
 def digits_histogram(labels: pd.DataFrame | np.ndarray, save: bool = False,
@@ -110,8 +126,7 @@ def digits_histogram(labels: pd.DataFrame | np.ndarray, save: bool = False,
     ax.set_ylabel('Counts')
 
     if save:
-        image_dir = os.path.join(get_root_dir(), IMAGES)
-        create_dir(image_dir, log=False)
-        return plt.savefig(os.path.join(image_dir, file_name))
+        create_dir(IMAGES_DIR, log=False)
+        return plt.savefig(os.path.join(IMAGES_DIR, file_name))
     else:
         plt.show()
