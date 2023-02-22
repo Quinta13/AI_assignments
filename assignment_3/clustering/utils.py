@@ -94,7 +94,7 @@ def plot_mean_digit(X: pd.DataFrame, save: bool = False,
     :param file_name: name of file if stored (including extension)
     """
 
-    pixels = np.mean(X)
+    pixels = np.mean(X, axis=0)
     plot_digit(pixels=pixels, save=save, file_name=file_name)
 
 
