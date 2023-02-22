@@ -4,6 +4,7 @@ This file ... TODO
 from __future__ import annotations
 
 import time
+from abc import abstractmethod, ABC
 from os import path
 from typing import Iterator, Dict, List
 
@@ -134,56 +135,36 @@ class Dataset:
         return self
 
 
-""" MEAN SHIFT """
+""" CLUSTERING MODEL """
 
 
-class MeanShiftClustering:
+class ClusteringModel(ABC):
     """
-    This class provide some methods to evaluate MeanShift Clustering over a given dataset,
-        in particular it automatize model fitting phase, evaluation and result analysis
+    This is an abstract class for Clustering Model implementation
     """
 
-    def __init__(self, data: Dataset, kernel: float):
+    REPR_NAME: str = "ClusteringModel"
+
+    def __init__(self, data: Dataset):
         """
-
+        The initializer store dataset for evaluation
         :param data: dataset for evaluation
-        :param kernel: bandwidth for mean-shift
         """
 
         _X, _y = data
         self._X: pd.DataFrame = _X
         self._y: np.ndarray = _y
 
-        self._kernel: float = 0.
-        self.set_kernel(kernel)
-
         self._trained: bool = False
         self._out: np.ndarray | None = None
 
-        self.mean_shift = MeanShift(bandwidth=self._kernel)
+        self.model = None
 
-    def set_kernel(self, kernel: float):
-        """
-        Change value of kernel size for mean_shift,
-            makes an integrity check on the value
-            if the kernel size changes the model need to be reevaluated
-        :param kernel: kernels size for mean shift
-        """
-
-        if kernel <= 0:
-            raise Exception(f"Given kernel size of {kernel}, but is should be positive")
-
-        if self._kernel != kernel:
-            self._trained = False
-            self._kernel = kernel
-
+    @abstractmethod
     def fit(self):
-        """
-        Train the model
-        """
-        self.mean_shift = MeanShift(bandwidth=self._kernel).fit(self._X)
-        self._out = self.mean_shift.labels_
-        self._trained = True
+        """ TOdo provide out and save trained"""
+        """ Fit the model """
+        pass
 
     @property
     def out(self) -> np.ndarray:
@@ -228,57 +209,63 @@ class MeanShiftClustering:
     def __str__(self) -> str:
         """
         Return a string representation for the class
-        :return: stringify MeanShiftClustering
+        :return: stringify clustering model
         """
-        return f"[N-rows: {len(self._X)}; N-components: {self._X.shape[1]}; KernelSize: {self._kernel}" + \
-               (f", Score: {self.score}, N-clusters: {self.n_clusters}" if self._trained else "") + "]"
+        return f"{self.REPR_NAME}[N-rows: {len(self._X)}; N-components: {self._X.shape[1]}; " + \
+               (f", Score: {self.score}, N-clusters: {self.n_clusters}" if self._trained else "") + "] "
 
     def __repr__(self) -> str:
         """
         Return a string representation for the class
-        :return: stringify MeanShiftClustering
+        :return: stringify clustering model
         """
         return str(self)
 
 
-class MeanShiftEvaluation:
+class ClusteringModelEvaluation(ABC):
     """
-    This class automatize different MeanShiftCluster models evaluation over a different combination of:
-        - kernel size
+    This class automatize different clustering models evaluation over a different combination of:
+        - hyperparameter (size of kernel, number of clusters)
         - number of components
     Provide some methods for analyzing evaluation results, such as getting the best model or plotting some trends
     """
 
-    COLORS = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w', '#E15E3F', '#6a329f']  # plotting colors depending on bandwidth
+    COLORS = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w', '#E15E3F', '#6a329f']  # plotting colors depending model hyperparameter
+
+    # class name
+    EVALUATION_NAME = 'ClusteringModelEvaluation'
+
+    # hyperparameter
+    HYPERPARAMETER = 'hyperparameter'
 
     # keys for result dictionary
     SCORE = 'score'
     N_CLUSTERS = 'n_clusters'
     TIME = 'time'
 
-    def __init__(self, data: Dataset, n_components: List[int], kernels: List[float]):
+    def __init__(self, data: Dataset, n_components: List[int], hyperparameter: List[int | float]):
         """
 
         :param data: dataset for evaluation
         :param n_components: list of number of components to evaluate
-        :param kernels: list of kernel sizes
+        :param hyperparameter: list of model hyper-parameters
         """
         self.data: Dataset = data
         self._n_components: List[int] = n_components
-        self._kernels: List[float] = kernels
+        self._hyperparameters: List[int | float] = hyperparameter
         if len(self._n_components) > len(self.COLORS):
             raise Exception(f"Due to graphic representation at most {len(self.COLORS)} kernels sizes are considered, "
-                            f"{len(self._kernels)} were given.")
+                            f"{len(self._hyperparameters)} were given.")
         self._evaluated: bool = False
-        self._best_model: MeanShiftClustering | None = None
-        self._results: Dict[float, Dict[int, Dict[str, int]]] = dict()
+        self._best_model: ClusteringModel | None = None
+        self._results: Dict[int | float, Dict[int, Dict[str, int]]] = dict()
 
     def __str__(self) -> str:
         """
         Returns string representation for the object
         :return: stringify MeanShiftClustering
         """
-        return f"MeanShiftEvaluation [n_components: {self._n_components}, kernels: {self._kernels}]"
+        return f"{self.EVALUATION_NAME} [n_components: {self._n_components}, {self.HYPERPARAMETER}: {self._hyperparameters}]"
 
     def __repr__(self) -> str:
         """
@@ -295,44 +282,10 @@ class MeanShiftEvaluation:
         if not self._evaluated:
             raise f"Evaluation not completed yet"
 
+    @abstractmethod
     def evaluate(self, log: bool = True):
-        """
-        Evaluate MeanShift Clustering over all combination of
-            - number of components used
-            - kernel dimension (bandwidth)
-        Results are organized in a dictionary providing:
-            - number of clusters found
-            - random index score of any model
-            - evaluation time
-        :param log: if to log progress
-        """
-
-        log_ = print if log else lambda x: None
-
-        kernels = {}  # kernel size : dictionary keyed by number of components
-
-        for k in self._kernels:
-            log_(f"Processing kernel size: {k}")
-            components = {}  # number of components : results
-            for nc in self._n_components:
-                data_d = self.data.make_pca(n_components=nc).rescale()
-                mean_shift = MeanShiftClustering(data=data_d, kernel=k)
-                t1 = time.perf_counter()
-                mean_shift.fit()
-                elapsed = time.perf_counter() - t1
-                results = {
-                    self.SCORE: mean_shift.score,
-                    self.N_CLUSTERS: mean_shift.n_clusters,
-                    self.TIME: elapsed
-                }
-                log_(f"  > Processed number of component: {nc} [{elapsed:.5f} s] ")
-                if self._best_model is None or mean_shift.score > self._best_model.score:
-                    self._best_model = mean_shift
-                components[nc] = results
-            kernels[k] = components
-
-        self._evaluated = True
-        self._results = kernels
+        """TODO provide results and check evalutaed and best model"""
+        pass
 
     @property
     def results(self) -> Dict[float, Dict[int, Dict[str, int]]]:
@@ -343,7 +296,7 @@ class MeanShiftEvaluation:
         return self._results
 
     @property
-    def best_model(self) -> MeanShiftClustering:
+    def best_model(self) -> ClusteringModel:
         """
         Returns best model in the evaluation
 
@@ -355,9 +308,9 @@ class MeanShiftEvaluation:
         """
         Plot a graph foreach different kernel used:
             - x axes: number of component
-            - y axes: stats (number of clusters / score)
+            - y axes: stats (number of clusters / score / time)
         :param title: graph title
-        :param res: weather score or number of cluster key
+        :param res: weather score or number of cluster or time
         :y_label: name for ordinates axes
         :save: if to save the graph to images directory
         :file_name: name of stored file
@@ -417,6 +370,100 @@ class MeanShiftEvaluation:
         """
         self._plot(title="Elapsed Execution Time", res=self.TIME,
                    y_label='Time', save=save, file_name=file_name)
+
+
+""" MEAN SHIFT """
+
+
+class MeanShiftClustering(ClusteringModel):
+    """
+    This class provide some methods to evaluate MeanShift Clustering over a given dataset,
+        in particular it automatize model fitting phase, evaluation and result analysis
+    """
+
+    REPR_NAME = "MeanShift"
+
+    def __init__(self, data: Dataset, kernel: float):
+        """
+
+        :param data: dataset for evaluation
+        :param kernel: bandwidth for mean-shift
+        """
+
+        super().__init__(data=data)
+
+        self._kernel: float = kernel
+
+        self.model = MeanShift(bandwidth=self._kernel)
+
+    def fit(self):
+        """
+        Train the model
+        """
+        self.model = MeanShift(bandwidth=self._kernel).fit(self._X)
+        self._out = self.model.labels_
+        self._trained = True
+
+    def __str__(self) -> str:
+        """
+        Return a string representation for the class
+        :return: stringify MeanShiftClustering
+        """
+        return super().__str__() + f"[KernelSize: {self._kernel}] "
+
+
+class MeanShiftEvaluation(ClusteringModelEvaluation):
+    """
+    This class automatize different MeanShiftCluster models evaluation over a different combination of:
+        - kernel size
+        - number of components
+    Provide some methods for analyzing evaluation results, such as getting the best model or plotting some trends
+    """
+
+    COLORS = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w', '#E15E3F', '#6a329f']  # plotting colors depending on kernel
+
+    EVALUATION_NAME = "MeanShiftEvaluation"
+
+    HYPERPARAMETER = "kernel-size"
+
+    def evaluate(self, log: bool = True):
+        """
+        Evaluate MeanShift Clustering over all combination of
+            - number of components used
+            - kernel dimension (bandwidth)
+        Results are organized in a dictionary providing:
+            - number of clusters found
+            - random index score of any model
+            - evaluation time
+        :param log: if to log progress
+        """
+
+        log_ = print if log else lambda x: None
+
+        kernels = {}  # kernel size : dictionary keyed by number of components
+
+        for k in self._hyperparameters:
+            log_(f"Processing kernel size: {k}")
+            components = {}  # number of components : results
+            for nc in self._n_components:
+                data_d = self.data.make_pca(n_components=nc).rescale()
+                mean_shift = MeanShiftClustering(data=data_d, kernel=k)
+                t1 = time.perf_counter()
+                mean_shift.fit()
+                elapsed = time.perf_counter() - t1
+                results = {
+                    self.SCORE: mean_shift.score,
+                    self.N_CLUSTERS: mean_shift.n_clusters,
+                    self.TIME: elapsed
+                }
+                log_(f"  > Processed number of component: {nc} [{elapsed:.5f} s] ")
+                if self._best_model is None or mean_shift.score > self._best_model.score:
+                    self._best_model = mean_shift
+                components[nc] = results
+            kernels[k] = components
+
+        self._evaluated = True
+        self._results = kernels
 
 
 # CLUSTER DATA SPLIT
@@ -567,3 +614,6 @@ class DataClusterSplit:
             freq = {x: list(c.y).count(x) for x in c.y}
             print(f"[Mode {mode(c.y)}: {freq}] ")
             plot_mean_digit(X=c.X)
+
+
+""" N-CUT """
