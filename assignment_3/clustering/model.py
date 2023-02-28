@@ -6,7 +6,7 @@ from __future__ import annotations
 import time
 from abc import abstractmethod, ABC
 from os import path
-from typing import Iterator, Dict, List
+from typing import Iterator, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -15,7 +15,7 @@ from matplotlib import pyplot as plt
 from numpy import ndarray
 from statistics import mean, mode
 from pandas import DataFrame
-from sklearn.cluster import MeanShift
+from sklearn.cluster import MeanShift, SpectralClustering
 from sklearn.decomposition import PCA
 from sklearn.metrics import rand_score
 from sklearn.model_selection import train_test_split
@@ -162,7 +162,7 @@ class ClusteringModel(ABC):
 
     @abstractmethod
     def fit(self):
-        """ TOdo provide out and save trained"""
+        """ Todo provide out and save trained"""
         """ Fit the model """
         pass
 
@@ -230,7 +230,8 @@ class ClusteringModelEvaluation(ABC):
     Provide some methods for analyzing evaluation results, such as getting the best model or plotting some trends
     """
 
-    COLORS = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w', '#E15E3F', '#6a329f']  # plotting colors depending model hyperparameter
+    COLORS = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w', '#E15E3F',
+              '#6a329f']  # plotting colors depending model hyperparameter
 
     # class name
     EVALUATION_NAME = 'ClusteringModelEvaluation'
@@ -419,9 +420,6 @@ class MeanShiftEvaluation(ClusteringModelEvaluation):
         - number of components
     Provide some methods for analyzing evaluation results, such as getting the best model or plotting some trends
     """
-
-    COLORS = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w', '#E15E3F', '#6a329f']  # plotting colors depending on kernel
-
     EVALUATION_NAME = "MeanShiftEvaluation"
 
     HYPERPARAMETER = "kernel-size"
@@ -466,6 +464,99 @@ class MeanShiftEvaluation(ClusteringModelEvaluation):
         self._results = kernels
 
 
+""" NORMALIZED CUT """
+
+
+class NormalizedCutClustering(ClusteringModel):
+    """
+    This class provide some methods to evaluate Normalized Cut Clustering over a given dataset,
+        in particular it automatize model fitting phase, evaluation and result analysis
+    """
+
+    REPR_NAME = "NormalizedCut"
+
+    def __init__(self, data: Dataset, k: int):
+        """
+
+        :param data: dataset for evaluation
+        :param k: number of clusters
+        """
+
+        super().__init__(data=data)
+
+        self._k: float = k
+
+        self.model = SpectralClustering(n_clusters=self._k, eigen_solver='arpack',
+                                        assign_labels='kmeans', random_state=0)
+
+    def fit(self):
+        """
+        Train the model
+        """
+        self.model.fit(self._X)
+        self._out = self.model.labels_
+        self._trained = True
+
+    def __str__(self) -> str:
+        """
+        Return a string representation for the class
+        :return: stringify NormalizedCutClustering
+        """
+        return super().__str__() + f"[K: {self._k}] "
+
+
+class NormalizedCutEvaluation(ClusteringModelEvaluation):
+    """
+    This class automatize different NormalizedCutClustering models evaluation over a different combination of:
+        - kernel size
+        - k (number of clusters)
+    Provide some methods for analyzing evaluation results, such as getting the best model or plotting some trends
+    """
+
+    EVALUATION_NAME = "NormalizedCutEvaluation"
+
+    HYPERPARAMETER = "k"
+
+    def evaluate(self, log: bool = True):
+        """
+        Evaluate NormalizedCut Clustering over all combination of
+            - number of components used
+            - k (number of clusters)
+        Results are organized in a dictionary providing:
+            - number of clusters found
+            - random index score of any model
+            - evaluation time
+        :param log: if to log progress
+        """
+
+        log_ = print if log else lambda x: None
+
+        kernels = {}  # kernel size : dictionary keyed by number of components
+
+        for k in self._hyperparameters:
+            log_(f"Processing number of clusters K: {k}")
+            components = {}  # number of components : results
+            for nc in self._n_components:
+                data_d = self.data.make_pca(n_components=nc).rescale()
+                ncut = NormalizedCutClustering(data=data_d, k=k)
+                t1 = time.perf_counter()
+                ncut.fit()
+                elapsed = time.perf_counter() - t1
+                results = {
+                    self.SCORE: ncut.score,
+                    self.N_CLUSTERS: ncut.n_clusters,
+                    self.TIME: elapsed
+                }
+                log_(f"  > Processed number of component: {nc} [{elapsed:.5f} s] ")
+                if self._best_model is None or ncut.score > self._best_model.score:
+                    self._best_model = ncut
+                components[nc] = results
+            kernels[k] = components
+
+        self._evaluated = True
+        self._results = kernels
+
+
 # CLUSTER DATA SPLIT
 
 class DataClusterSplit:
@@ -480,6 +571,8 @@ class DataClusterSplit:
         :param index: clustering index
         """
         self._clusters: Dict[int, Dataset] = self._split_dataset(data=data, index=index)
+
+        self._cluster_idx, self._true_label = self._materialize_indexes()
 
     # STATS
 
@@ -537,7 +630,8 @@ class DataClusterSplit:
         Return string representation for the object:
         :return: stringify Data Clustering Split
         """
-        return f"Cluster Data Split [Data: {self.total_instances}, Clusters: {self.n_cluster}, Mean-per-Cluster: {self.mean_cardinality}] "
+        return f"Cluster Data Split [Data: {self.total_instances}, Clusters: {self.n_cluster}, " \
+               f"Mean-per-Cluster: {self.mean_cardinality:.3f}, Score: {self.rand_index_score:.3f}] "
 
     def __repr__(self) -> str:
         """
@@ -556,14 +650,17 @@ class DataClusterSplit:
             a = 0
         if b is None:  # upper-bound to maximum cardinality
             b = max(self.clusters_cardinality.values())
-        dcs = DataClusterSplit(  # generating new empty DataClusterSplit
-            data=Dataset(x=pd.DataFrame(), y=np.array([])),
-            index=np.array([])
+
+        new_dcs = self
+        dcs = DataClusterSplit(  # generating new fake DataClusterSplit
+            data=Dataset(x=pd.DataFrame([0]), y=np.array([0])),
+            index=np.array([0])
         )
         dcs._clusters = {  # setting new datas satisfying length bounds
             k: v for k, v in self.clusters.items()
             if a <= len(v) <= b
         }
+        dcs._cluster_idx, dcs._true_label = dcs._materialize_indexes()
         return dcs
 
     @staticmethod
@@ -612,8 +709,28 @@ class DataClusterSplit:
 
         for c in self.clusters.values():
             freq = {x: list(c.y).count(x) for x in c.y}
+            freq = dict(sorted(freq.items(), key=lambda x: -x[1]))  # sort by values
             print(f"[Mode {mode(c.y)}: {freq}] ")
             plot_mean_digit(X=c.X)
 
+    def _materialize_indexes(self) -> Tuple[List[int], List[int]]:
+        """
+        Provides list of clusters and corresponding labels to evaluate scores
+        """
 
-""" N-CUT """
+        cluster_idx = [item for sublist in [
+            [idx] * len(data) for idx, data in self.clusters.items()
+        ] for item in sublist]
+
+        true_labels = np.concatenate([
+            data.y for _, data in self.clusters.items()
+        ]).ravel().tolist()
+
+        return cluster_idx, true_labels
+
+    @property
+    def rand_index_score(self) -> float:
+        """
+        TODO
+        """
+        return rand_score(labels_true=self._true_label, labels_pred=self._cluster_idx)
