@@ -1,29 +1,26 @@
 """
-This file ... TODO
+This file contains global settings for the API
 """
 
-import os.path as path
-
-
-def get_root_dir() -> str:
-    """
-    Returns the path to the root of directory project.
-    :return: string representing the dir path
-    """
-
-    # Remember that the relative path here is relative to __file__,
-    # so an additional ".." is needed
-    return str(path.abspath(path.join(__file__, "../")))
-
+# Directory names
+from os import path
 
 DATASETS = "datasets"
 IMAGES = "images"
 
-DATASET_DIR = path.join(get_root_dir(), DATASETS)
-IMAGES_DIR = path.join(get_root_dir(), IMAGES)
+# File names
+DATA = "pixels"
+LABELS = "labels"
 
-TRAINING_DATA = "pixels.csv"
-TRAINING_LABELS = "labels.csv"
+DATA_SMALL = "pixels_s"
+LABELS_SMALL = "labels_s"
 
-TRAINING_DATA_SMALL = "pixels_s.csv"
-TRAINING_LABELS_SMALL = "labels_s.csv"
+# Images
+SIZE = 28
+IMG_EXT = 'svg'
+
+# Log
+LOG = True
+
+
+

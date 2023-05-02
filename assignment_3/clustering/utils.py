@@ -1,35 +1,20 @@
 """
-This file ... TODO
+This module implements general purpose functions
 """
 
 from __future__ import annotations
 
-import numpy as np
-import os
-import pandas as pd
+from os import path as path
 from typing import List, Dict
 
-from loguru import logger
+import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
 
-from assignment_3.clustering.settings import IMAGES_DIR
-
-SIZE = 28
-
-
-def create_dir(path: str, log: bool = True):
-    """
-    Create directory if doesn't exists
-    :param path: directory path
-    :param log: activate logging
-    """
-    try:
-        if log:
-            logger.info(f"Creating {path}")
-        os.makedirs(path)
-    except FileExistsError:
-        if log:
-            logger.info(f"{path} already exists")
+from clustering.globals import get_images_dir, get_dataset_dir
+from clustering.io_ import makedir
+from clustering.mnist import log
+from clustering.settings import IMG_EXT, SIZE
 
 
 def chunks(lst: List, n: int) -> np.array:
@@ -60,14 +45,17 @@ def chunks(lst: List, n: int) -> np.array:
     )
 
 
+""" PLOTS """
+
+
 def plot_digit(pixels: np.array, save: bool = False,
-               file_name: str = "image.png"):
+               file_name: str = "digit"):
     """
     Plot a figure given a square matrix array,
         each cell represent a grey-scale pixel with intensity 0-1
     :param pixels: intensity of pixels
-    :param save: if true, the image is stored in the directory
-    :param file_name: name of file if stored (including extension)
+    :param save: true for storing the image
+    :param file_name: name file if stored
     """
 
     fig, ax = plt.subplots(1)
@@ -77,29 +65,29 @@ def plot_digit(pixels: np.array, save: bool = False,
     ax.set_xticklabels([])
 
     if save:
-        file = os.path.join(IMAGES_DIR, file_name)
-        logger.info(f"Saving {file}")
-        create_dir(IMAGES_DIR, log=False)
-        return plt.savefig(file)  # return allows inline-plot in notebooks
-    else:
-        plt.show()
+        file = path.join(get_images_dir(), f"{file_name}.{IMG_EXT}")
+        makedir(get_images_dir())
+        log(f"Saving {file}")
+        plt.savefig(file)  # return allows inline-plot in notebooks
+
+    plt.show()
 
 
 def plot_mean_digit(X: pd.DataFrame, save: bool = False,
-                    file_name: str = "image.png"):
+                    file_name: str = "mean_digit"):
     """
     Plots the average figure of a certain number of images
     :param X: set of images
-    :param save: if true, the image is stored in the directory
-    :param file_name: name of file if stored (including extension)
+    :param save: if true, image is stored
+    :param file_name: name of file if stored
     """
 
     pixels = np.mean(X, axis=0)
     plot_digit(pixels=pixels, save=save, file_name=file_name)
 
 
-def digits_histogram(labels: pd.DataFrame | np.ndarray, save: bool = False,
-                     file_name: str = "plot.png"):
+def digits_histogram(labels: pd.DataFrame | np.ndarray,
+                     save: bool = False, file_name: str = "plot"):
     """
     Plot distribution of labels in a dataset given its labels
 
@@ -126,7 +114,34 @@ def digits_histogram(labels: pd.DataFrame | np.ndarray, save: bool = False,
     ax.set_ylabel('Counts')
 
     if save:
-        create_dir(IMAGES_DIR, log=False)
-        return plt.savefig(os.path.join(IMAGES_DIR, file_name))
-    else:
-        plt.show()
+        file = path.join(get_images_dir(), f"{file_name}.{IMG_EXT}")
+        makedir(get_dataset_dir())
+        log(f"Saving {file}")
+        plt.savefig(file)  # return allows inline-plot in notebooks
+
+    plt.show()
+
+
+def plot_cluster_frequencies_histo(frequencies: Dict[int, int],
+                                   save: bool = False, file_name: str = 'frequencies'):
+    """
+    Plot clusters frequencies in a histogram
+    :save: if to save the graph to images directory
+    :file_name: name of stored file
+    """
+
+    fig, ax = plt.subplots(1)
+
+    ax.bar(list(frequencies.keys()), frequencies.values(), edgecolor='black')
+
+    # Title and axes
+    ax.set_title('Clusters cardinality')
+    ax.set_xlabel('Cluster dimension')
+    ax.set_ylabel('Occurrences')
+
+    if save:
+        makedir(get_images_dir())
+        out_file = path.join(get_images_dir(), f"{file_name}.{IMG_EXT}")
+        log(f"Saving {out_file}")
+        plt.savefig(out_file)
+    plt.show()
