@@ -26,7 +26,7 @@ def download_MNIST() -> Dataset:
     """
 
     # Downloading data
-    log("Fetching data")
+    log("Fetching data. ")
     X, y = fetch_openml('mnist_784', version=1, return_X_y=True)
     y = y.astype(int)
     X = X / 255
@@ -52,7 +52,7 @@ def store_MNIST(data: Dataset):
     :param data: dataset to be stored
     """
 
-    log("Storing MNIST")
+    log("Storing MNIST. ")
 
     _store_dataset(data=data, x_name=DATA, y_name=LABELS)
 
@@ -63,7 +63,7 @@ def store_MNIST_SMALL(data: Dataset):
     :param data: dataset to be stored
     """
 
-    log("Storing small MNIST")
+    log("Storing small MNIST. ")
 
     _store_dataset(data=data, x_name=DATA_SMALL, y_name=LABELS_SMALL)
 
@@ -78,10 +78,10 @@ def _read_dataset(x_name: str, y_name: str) -> Dataset:
     x_file = path.join(get_dataset_dir(), f"{x_name}.csv")
     y_file = path.join(get_dataset_dir(), f"{y_name}.csv")
 
-    log(f"Reading {x_file}")
+    log(f"Reading {x_file} ")
     X = pd.read_csv(x_file)
 
-    log(f"Reading {y_file}")
+    log(f"Reading {y_file} ")
     y = pd.read_csv(y_file).values.ravel()
 
     return Dataset(
@@ -94,7 +94,7 @@ def read_MNIST() -> Dataset:
     """
     Read MNIST dataset in proper directory
     """
-    log("Reading MNIST")
+    log("Reading MNIST. ")
 
     return _read_dataset(DATA, LABELS)
 
@@ -104,6 +104,6 @@ def read_MNIST_small() -> Dataset:
     Read small MNIST dataset in proper directory
     """
 
-    log("Reading small MNIST")
+    log("Reading small MNIST. ")
 
     return _read_dataset(DATA_SMALL, LABELS_SMALL)

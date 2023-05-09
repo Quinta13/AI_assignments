@@ -165,10 +165,10 @@ class Dataset:
         x_out = path.join(get_dataset_dir(), f"{x_name}.csv")
         y_out = path.join(get_dataset_dir(), f"{y_name}.csv")
 
-        log(f"Saving {x_out}")
+        log(f"Saving {x_out} ")
         self.X.to_csv(x_out, index=False)
 
-        log(f"Saving {y_out}")
+        log(f"Saving {y_out} ")
         pd.DataFrame(self.y).to_csv(y_out, index=False)
 
     def plot_digit_distribution(self, save: bool = False, file_name: str = 'histo.png'):
@@ -384,9 +384,9 @@ class ClusteringModel(ABC):
         :param data: dataset for evaluation
         """
 
-        _X, _y = data
-        self._X: pd.DataFrame = _X
-        self._y: np.ndarray = _y
+        X, y = data
+        self._X: pd.DataFrame = X
+        self._y: np.ndarray = y
 
         self._trained: bool = False
         self._out: np.ndarray | None = None
@@ -445,7 +445,7 @@ class ClusteringModel(ABC):
         :return: stringify clustering model
         """
         return f"{self.REPR_NAME}[N-rows: {len(self._X)}; N-components: {self._X.shape[1]}; " + \
-               (f" Score: {self.score}, N-clusters: {self.n_clusters}" if self._trained else "") + "] "
+               (f"Score: {self.score}, N-clusters: {self.n_clusters}" if self._trained else "") + "] "
 
     def __repr__(self) -> str:
         """
@@ -533,13 +533,15 @@ class ClusteringModelEvaluation(ABC):
         :param cm: implementation of a specific clustering model
         """
 
-        kernels = {}  # kernel size : dictionary keyed by number of components
+        components = {}  # n_components : dictionary keyed by hyperparameter
 
-        for k in self._hyperparameters:
-            self._log(f"Processing {self.HYPERPARAMETER}: {k}")
-            components = {}  # number of components : results
-            for nc in self._n_components:
-                data_d = self.data.make_pca(n_components=nc).rescale()
+        for nc in self._n_components:
+
+            self._log(f"Processing number of components: {nc} ")
+            data_d = self.data.make_pca(n_components=nc).rescale()
+            hyperparameters = {}  # hyperparameter value : results
+
+            for k in self._hyperparameters:
                 cm_obj = cm(data_d, k)
                 t1 = time.perf_counter()
                 cm_obj.fit()
@@ -550,14 +552,14 @@ class ClusteringModelEvaluation(ABC):
                     self.N_CLUSTERS: cm_obj.n_clusters,
                     self.TIME: elapsed
                 }
-                self._log(f"  > Processed number of component: {nc} [{elapsed:.5f} s] ")
+                self._log(f"  > Processed {self.HYPERPARAMETER}: {k} [{elapsed:.5f} s] ")
                 if self._best_model is None or cm_obj.score > self._best_model.score:
                     self._best_model = cm_obj
-                components[nc] = results
-            kernels[k] = components
+                hyperparameters[k] = results
+            components[nc] = hyperparameters
 
+        self._results = components
         self._evaluated = True
-        self._results = kernels
 
     @property
     def results(self) -> Dict[float, Dict[int, Dict[str, int]]]:
@@ -589,7 +591,15 @@ class ClusteringModelEvaluation(ABC):
         :param file_name: name of stored file
         """
 
-        for kernel, dims in self.results.items():
+        # transform
+        #   components     : hyperparameter : results
+        #   hyperparameter : components     : results
+        inverted_dictionary = {
+            k: {k2: v2[k] for k2, v2 in self.results.items()}
+            for k in self.results[list(self.results.keys())[0]]
+        }
+
+        for kernel, dims in inverted_dictionary.items():
 
             x = []  # number of components
             y = []  # result
@@ -618,7 +628,7 @@ class ClusteringModelEvaluation(ABC):
         # SAve the plot
         plt.show()
 
-    def plot_score(self, save=False, file_name='accuracy.png'):
+    def plot_score(self, save=False, file_name='accuracy'):
         """
         Plot score graph
         :save: if to save the graph to images directory
@@ -627,7 +637,7 @@ class ClusteringModelEvaluation(ABC):
         self._plot(title="Random Index Score", res=self.SCORE,
                    y_label='Score', save=save, file_name=file_name)
 
-    def plot_n_clusters(self, save=False, file_name='n_clusters.png'):
+    def plot_n_clusters(self, save=False, file_name='n_clusters'):
         """
         Plot n_cluster graph
         :save: if to save the graph to images directory
@@ -636,7 +646,7 @@ class ClusteringModelEvaluation(ABC):
         self._plot(title="Varying Cluster Number", res=self.N_CLUSTERS,
                    y_label='NClusters', save=save, file_name=file_name)
 
-    def plot_time(self, save=False, file_name='time.png'):
+    def plot_time(self, save=False, file_name='time'):
         """
         Plot time execution graph
         :save: if to save the graph to images directory
@@ -644,4 +654,3 @@ class ClusteringModelEvaluation(ABC):
         """
         self._plot(title="Elapsed Execution Time", res=self.TIME,
                    y_label='Time', save=save, file_name=file_name)
-

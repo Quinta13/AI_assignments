@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import time
 
-from sklearn.cluster import MeanShift, SpectralClustering
+from sklearn.cluster import MeanShift, SpectralClustering, KMeans
 from sklearn.mixture import GaussianMixture
 
 from clustering.io_ import log
@@ -178,7 +178,7 @@ class MixtureGaussianEvaluation(ClusteringModelEvaluation):
     Provide some methods for analyzing evaluation results, such as getting the best model or plotting some trends
     """
 
-    EVALUATION_NAME = "NormalizedCutEvaluation"
+    EVALUATION_NAME = "MixtureGaussianEvaluation"
 
     HYPERPARAMETER = "k"
 
@@ -190,3 +190,63 @@ class MixtureGaussianEvaluation(ClusteringModelEvaluation):
         """
 
         self._evaluate(cm=MixtureGaussianClustering)
+
+
+# MIXTURE GAUSSIAN
+
+class KMeansClustering(ClusteringModel):
+    """
+    This class provide some methods to evaluate KMeansClustering over a given dataset,
+        in particular it automatize model fitting phase, evaluation and result analysis
+    """
+
+    REPR_NAME = "KMeans"
+
+    def __init__(self, data: Dataset, k: int):
+        """
+
+        :param data: dataset for evaluation
+        :param k: number of clusters
+        """
+
+        super().__init__(data=data)
+
+        self._k: float = k
+
+        self.model = KMeans(n_clusters=k)
+
+    def fit(self):
+        """
+        Train the model
+        """
+        self.model.fit(self._X)
+        self._out = self.model.labels_
+        self._trained = True
+
+    def __str__(self) -> str:
+        """
+        Return a string representation for the class
+        :return: stringify MixtureGaussianClustering
+        """
+        return super().__str__() + f"[K: {self._k}] "
+
+
+class KMeansEvaluation(ClusteringModelEvaluation):
+    """
+    This class automatize different KMeansClustering models evaluation over a different combination of:
+        - k (number of clusters)
+    Provide some methods for analyzing evaluation results, such as getting the best model or plotting some trends
+    """
+
+    EVALUATION_NAME = "NormalizedCutEvaluation"
+
+    HYPERPARAMETER = "k"
+
+    def evaluate(self, log_: bool = True):
+        """
+        Evaluate MixtureGaussian Clustering over all combination of
+            - number of components used
+            - k (number of clusters)
+        """
+
+        self._evaluate(cm=KMeansClustering)

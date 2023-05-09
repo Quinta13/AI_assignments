@@ -67,7 +67,7 @@ def plot_digit(pixels: np.array, save: bool = False,
     if save:
         file = path.join(get_images_dir(), f"{file_name}.{IMG_EXT}")
         makedir(get_images_dir())
-        log(f"Saving {file}")
+        log(f"Saving {file} ")
         plt.savefig(file)  # return allows inline-plot in notebooks
 
     plt.show()
@@ -116,7 +116,7 @@ def digits_histogram(labels: pd.DataFrame | np.ndarray,
     if save:
         file = path.join(get_images_dir(), f"{file_name}.{IMG_EXT}")
         makedir(get_dataset_dir())
-        log(f"Saving {file}")
+        log(f"Saving {file} ")
         plt.savefig(file)  # return allows inline-plot in notebooks
 
     plt.show()
@@ -142,6 +142,6 @@ def plot_cluster_frequencies_histo(frequencies: Dict[int, int],
     if save:
         makedir(get_images_dir())
         out_file = path.join(get_images_dir(), f"{file_name}.{IMG_EXT}")
-        log(f"Saving {out_file}")
+        log(f"Saving {out_file} ")
         plt.savefig(out_file)
     plt.show()

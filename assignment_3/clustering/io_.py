@@ -19,6 +19,6 @@ def makedir(path_: str):
     """
     try:
         os.makedirs(path_)
-        log(f"Created directory {path_}")
+        log(f"Created directory {path_} ")
     except OSError:
         pass
