@@ -1,7 +1,7 @@
 """ I/O PATHS """
 from os import path
 
-from clustering.settings import DATASETS, IMAGES
+from assignment_3.clustering.settings import DATASETS, IMAGES
 
 
 def get_root_dir() -> str:

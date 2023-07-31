@@ -7,7 +7,7 @@ import subprocess
 
 from loguru import logger
 
-from clustering.globals import get_root_dir
+from assignment_3.clustering.globals import get_root_dir
 
 EXT = '.ipynb'
 COMMAND = 'jupyter nbconvert --to webpdf'

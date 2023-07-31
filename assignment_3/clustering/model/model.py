@@ -27,10 +27,10 @@ from sklearn.metrics import rand_score
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 
-from clustering.globals import get_dataset_dir, get_images_dir
-from clustering.io_ import makedir
-from clustering.settings import IMG_EXT
-from clustering.utils import log, digits_histogram, plot_digit, plot_mean_digit, plot_cluster_frequencies_histo
+from assignment_3.clustering.globals import get_dataset_dir, get_images_dir
+from assignment_3.clustering.io_ import makedir
+from assignment_3.clustering.settings import IMG_EXT
+from assignment_3.clustering.utils import log, digits_histogram, plot_digit, plot_mean_digit, plot_cluster_frequencies_histo
 
 """ DATASET """
 
@@ -380,7 +380,7 @@ class ClusteringModel(ABC):
 
     def __init__(self, data: Dataset):
         """
-        The initializer store dataset for evaluation
+        The initializer stores dataset for evaluation
         :param data: dataset for evaluation
         """
 
@@ -393,10 +393,29 @@ class ClusteringModel(ABC):
 
         self.model = None
 
+    def __str__(self) -> str:
+        """
+        Return a string representation for the class
+        :return: stringify clustering model
+        """
+        return f"{self.REPR_NAME}[N-rows: {len(self._X)}; N-components: {self._X.shape[1]}; " + \
+               (f"Score: {self.score}, N-clusters: {self.n_clusters}" if self._trained else "") + "] "
+
+    def __repr__(self) -> str:
+        """
+        Return a string representation for the class
+        :return: stringify clustering model
+        """
+        return str(self)
+
     @abstractmethod
     def fit(self):
-        """ Todo provide out and save trained"""
-        """ Fit the model """
+        """
+        This method must
+         - fit the model to given data using object `self.model`
+         - save cluster labels in `self._out`
+         - set trained flag on using `self._trained`
+        """
         pass
 
     @property
@@ -438,21 +457,6 @@ class ClusteringModel(ABC):
         """
         if not self._trained:
             raise Exception("Model not trained yet")
-
-    def __str__(self) -> str:
-        """
-        Return a string representation for the class
-        :return: stringify clustering model
-        """
-        return f"{self.REPR_NAME}[N-rows: {len(self._X)}; N-components: {self._X.shape[1]}; " + \
-               (f"Score: {self.score}, N-clusters: {self.n_clusters}" if self._trained else "") + "] "
-
-    def __repr__(self) -> str:
-        """
-        Return a string representation for the class
-        :return: stringify clustering model
-        """
-        return str(self)
 
 
 class ClusteringModelEvaluation(ABC):
@@ -518,7 +522,10 @@ class ClusteringModelEvaluation(ABC):
 
     @abstractmethod
     def evaluate(self):
-        """TODO provide results and check evalutaed and best model"""
+        """
+        The method should be a wrapper for `_evaluate` private method
+            and pass corresponding class as an argument
+        """
         pass
 
     def _evaluate(self, cm: type):

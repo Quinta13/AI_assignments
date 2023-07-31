@@ -5,12 +5,11 @@ import time
 from sklearn.cluster import MeanShift, SpectralClustering, KMeans
 from sklearn.mixture import GaussianMixture
 
-from clustering.io_ import log
-from clustering.model.model import ClusteringModel, Dataset, ClusteringModelEvaluation
+from assignment_3.clustering.io_ import log
+from assignment_3.clustering.model.model import ClusteringModel, Dataset, ClusteringModelEvaluation
 
 
 # MEAN SHIFT
-
 
 class MeanShiftClustering(ClusteringModel):
     """
@@ -30,14 +29,13 @@ class MeanShiftClustering(ClusteringModel):
         super().__init__(data=data)
 
         self._kernel: float = kernel
-
-        self.model = MeanShift(bandwidth=self._kernel)
+        self.model = MeanShift(bandwidth=self._kernel, max_iter=100)
 
     def fit(self):
         """
         Train the model
         """
-        self.model = MeanShift(bandwidth=self._kernel).fit(self._X)
+        self.model.fit(self._X)
         self._out = self.model.labels_
         self._trained = True
 
@@ -93,7 +91,7 @@ class NormalizedCutClustering(ClusteringModel):
         self._k: float = k
 
         self.model = SpectralClustering(n_clusters=self._k, eigen_solver='arpack',
-                                        assign_labels='kmeans', random_state=0)
+                                        assign_labels='kmeans', random_state=0, n_jobs=-1)
 
     def fit(self):
         """
@@ -192,7 +190,7 @@ class MixtureGaussianEvaluation(ClusteringModelEvaluation):
         self._evaluate(cm=MixtureGaussianClustering)
 
 
-# MIXTURE GAUSSIAN
+# KMEANS
 
 class KMeansClustering(ClusteringModel):
     """

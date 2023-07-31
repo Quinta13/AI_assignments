@@ -1,6 +1,6 @@
 import os
 
-from clustering.settings import LOG
+from assignment_3.clustering.settings import LOG
 
 
 def log(info: str):

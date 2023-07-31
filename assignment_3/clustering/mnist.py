@@ -9,10 +9,10 @@ from os import path as path
 import pandas as pd
 from sklearn.datasets import fetch_openml
 
-from clustering.globals import get_dataset_dir
-from clustering.io_ import log
-from clustering.model.model import Dataset
-from clustering.settings import DATA, LABELS, \
+from assignment_3.clustering.globals import get_dataset_dir
+from assignment_3.clustering.io_ import log
+from assignment_3.clustering.model.model import Dataset
+from assignment_3.clustering.settings import DATA, LABELS, \
     LABELS_SMALL, DATA_SMALL
 
 

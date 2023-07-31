@@ -11,10 +11,10 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
-from clustering.globals import get_images_dir, get_dataset_dir
-from clustering.io_ import makedir
-from clustering.mnist import log
-from clustering.settings import IMG_EXT, SIZE
+from assignment_3.clustering.globals import get_images_dir, get_dataset_dir
+from assignment_3.clustering.io_ import makedir
+from assignment_3.clustering.mnist import log
+from assignment_3.clustering.settings import IMG_EXT, SIZE
 
 
 def chunks(lst: List, n: int) -> np.array:
