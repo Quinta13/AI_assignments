@@ -14,6 +14,7 @@ from __future__ import annotations
 import time
 from abc import abstractmethod, ABC
 from os import path
+from random import sample
 from typing import Iterator, Dict, List, Tuple
 
 import numpy as np
@@ -332,12 +333,18 @@ class DataClusterSplit:
 
         plot_cluster_frequencies_histo(frequencies=self.clusters_frequencies, save=save, file_name=file_name)
 
-    def plot_mean_digit(self):
+    def plot_mean_digit(self, sample_out: int | None = None):
         """
         Plots mean digit foreach cluster
+        :param sample_out: number of elements to print uniformly sampled
         """
 
-        for c in self.clusters.values():
+        vals = list(self.clusters.values())
+
+        if sample_out is not None:
+            vals = sample(vals, sample_out)
+
+        for c in vals:
             freq = {x: list(c.y).count(x) for x in c.y}
             freq = dict(sorted(freq.items(), key=lambda x: -x[1]))  # sort by values
             print(f"[Mode {mode(c.y)}: {freq}] ")

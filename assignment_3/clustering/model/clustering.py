@@ -29,7 +29,7 @@ class MeanShiftClustering(ClusteringModel):
         super().__init__(data=data)
 
         self._kernel: float = kernel
-        self.model = MeanShift(bandwidth=self._kernel, max_iter=100)
+        self.model = MeanShift(bandwidth=self._kernel, n_jobs=-1)
 
     def fit(self):
         """
